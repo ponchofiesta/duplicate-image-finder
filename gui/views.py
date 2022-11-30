@@ -1,22 +1,22 @@
 import pathlib
-from tkinter import IntVar, ttk
-import tkinter as tk
+from tkinter import IntVar
 from typing import List
+
 import pygubu
-from PIL import ImageTk, Image as PILImage, ExifTags
+from PIL import ExifTags
+from PIL import Image as PILImage
+from PIL import ImageTk
 
-
-PROJECT_PATH = pathlib.Path(__file__).parent / "views"
+VIEWS_PATH = pathlib.Path(__file__).parent / "views"
 
 
 class Image:
     def __init__(self, image_path: str, checked=False, master=None) -> None:
         self._image_path = image_path
-        self._checked = checked
 
         self.builder = builder = pygubu.Builder()
-        builder.add_resource_path(PROJECT_PATH)
-        builder.add_from_file(PROJECT_PATH / "image.ui")
+        builder.add_resource_path(VIEWS_PATH)
+        builder.add_from_file(VIEWS_PATH / "image.ui")
         self.mainwindow = builder.get_object('imageFrame', master)
         self.label = builder.get_object('imageLabel')
         self.checkbox = builder.get_object('imageCheckbox')
@@ -40,10 +40,15 @@ class Image:
         self.label.configure(image=self._image)
         self.label.image = self._image
 
-        self.checked(checked)
+        self.checked = checked
 
         builder.connect_callbacks(self)
 
+    @property
+    def checked(self):
+        return self._checked.get() == 1
+
+    @checked.setter
     def checked(self, value):
         self._checked = IntVar(value=0)
         if value:
@@ -57,8 +62,8 @@ class ImageGroup:
         self._images = []
 
         self.builder = builder = pygubu.Builder()
-        builder.add_resource_path(PROJECT_PATH)
-        builder.add_from_file(PROJECT_PATH / "image_group.ui")
+        builder.add_resource_path(VIEWS_PATH)
+        builder.add_from_file(VIEWS_PATH / "image_group.ui")
         self.mainwindow = builder.get_object('imageGroup', master)
         self.label = builder.get_object('imageGroupLabel')
         self.image_list = builder.get_object('imageGroupList')
@@ -68,7 +73,7 @@ class ImageGroup:
         for i, path in enumerate(self._image_paths):
             image = Image(path, checked=True, master=self.image_list)
             if i == 0:
-                image.checked(False)
+                image.checked = False
             self._images.append(image)
-        
+
         builder.connect_callbacks(self)

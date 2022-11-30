@@ -1,21 +1,20 @@
 import pathlib
-#import tkinter as tk
-import pygubu
-#from gui.models import GroupsModel
-#from gui.views import GroupsView
-#from gui.controller import GroupsController
-from gui.views import Image, ImageGroup
+from tkinter import Canvas, Frame, Scrollbar, Toplevel
 
-PROJECT_PATH = pathlib.Path(__file__).parent / "views"
-PROJECT_UI = PROJECT_PATH / "app.ui"
+import pygubu
+
+from gui.views import ImageGroup
+
+VIEWS_PATH = pathlib.Path(__file__).parent / "views"
+
 
 class App:
     def __init__(self, groups, master=None):
         builder = pygubu.Builder()
-        builder.add_resource_path(PROJECT_PATH)
-        builder.add_from_file(PROJECT_UI)
-        self.mainwindow = builder.get_object("mainWindow", master)
-        self.groups_frame = builder.get_object("groupsFrame")
+        builder.add_resource_path(VIEWS_PATH)
+        builder.add_from_file(VIEWS_PATH / "app.ui")
+        self.mainwindow: Toplevel = builder.get_object("mainWindow", master)
+        self.groups_frame = builder.get_object("container")
         self._groups = groups
         self._master = master
         builder.connect_callbacks(self)

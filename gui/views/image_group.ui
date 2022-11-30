@@ -5,7 +5,8 @@
     <property name="width">200</property>
     <layout manager="pack">
       <property name="anchor">nw</property>
-      <property name="side">left</property>
+      <property name="fill">x</property>
+      <property name="side">top</property>
     </layout>
     <child>
       <object class="ttk.Label" id="imageGroupLabel" named="True">

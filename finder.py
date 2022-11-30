@@ -1,8 +1,9 @@
 import os
+from multiprocessing.pool import ThreadPool
+
 import imageio.v3 as iio
 import numpy as np
 import tqdm
-from multiprocessing.pool import ThreadPool
 
 
 class DuplicateFinder:
@@ -27,7 +28,7 @@ class DuplicateFinder:
         self.log("Creating histograms...")
         with ThreadPool() as pool:
             histograms = self.process(pool.imap_unordered(self.get_histogram, abs_paths), len(abs_paths), )
-        
+
         # Prepare diffs
         pairs = []
         for i, a in enumerate(histograms):
@@ -70,7 +71,7 @@ class DuplicateFinder:
         }
 
     def get_groups(self, pairs):
-        
+
         def in_group(a, b, group):
             for item in group:
                 if a["path"] == item["path"]:
