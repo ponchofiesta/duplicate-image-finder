@@ -1,0 +1,30 @@
+<?xml version='1.0' encoding='utf-8'?>
+<interface version="1.3">
+  <object class="ttk.Frame" id="imageGroup" named="True">
+    <property name="height">200</property>
+    <property name="width">200</property>
+    <layout manager="pack">
+      <property name="anchor">nw</property>
+      <property name="side">left</property>
+    </layout>
+    <child>
+      <object class="ttk.Label" id="imageGroupLabel" named="True">
+        <property name="text" translatable="yes">label1</property>
+        <layout manager="pack">
+          <property name="anchor">nw</property>
+          <property name="side">top</property>
+        </layout>
+      </object>
+    </child>
+    <child>
+      <object class="ttk.Frame" id="imageGroupList" named="True">
+        <property name="height">200</property>
+        <property name="width">200</property>
+        <layout manager="pack">
+          <property name="fill">both</property>
+          <property name="side">left</property>
+        </layout>
+      </object>
+    </child>
+  </object>
+</interface>

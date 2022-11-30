@@ -4,8 +4,6 @@ import numpy as np
 import tqdm
 from multiprocessing.pool import ThreadPool
 
-dir = r"C:\Users\poncho\Desktop\Duplikate"
-
 
 class DuplicateFinder:
     _colors = ("red", "green", "blue")
@@ -17,10 +15,9 @@ class DuplicateFinder:
     def process(self, imap, total):
         if self._progress:
             return list(tqdm.tqdm(imap, total=total))
-        else:
-            return imap
+        return imap
 
-    def find(self, path, threshold, progress=False):
+    def find(self, path, threshold=10_000_000, progress=False):
         self._progress = progress
 
         # Prepare file paths
@@ -29,7 +26,7 @@ class DuplicateFinder:
         # Get all histograms
         self.log("Creating histograms...")
         with ThreadPool() as pool:
-            histograms = self.process(pool.imap_unordered(self.get_histogram, abs_paths), len(abs_paths))
+            histograms = self.process(pool.imap_unordered(self.get_histogram, abs_paths), len(abs_paths), )
         
         # Prepare diffs
         pairs = []
@@ -50,7 +47,6 @@ class DuplicateFinder:
         diffs = [diff for diff in diffs if diff["diff"] < threshold]
 
         return diffs
-        
 
     def get_histogram(self, path):
         image = iio.imread(uri=path)
@@ -73,8 +69,39 @@ class DuplicateFinder:
             "diff": diff,
         }
 
+    def get_groups(self, pairs):
+        
+        def in_group(a, b, group):
+            for item in group:
+                if a["path"] == item["path"]:
+                    group.append(b)
+                    return True
+                elif b["path"] == item["path"]:
+                    group.append(a)
+                    return True
+            return False
 
-finder = DuplicateFinder()
-diffs = finder.find(dir, 10000000, True)
-for d in diffs:
-    print(d["a"]["path"], d["b"]["path"], d["diff"])
+        groups = []
+        for pair in pairs:
+            found = False
+            for group in groups:
+                if in_group(pair["a"], pair["b"], group):
+                    found = True
+            if not found:
+                groups.append([pair["a"], pair["b"]])
+
+        return groups
+
+
+if __name__ == "__main__":
+    #dir = r"C:\Users\poncho\Desktop\Duplikate"
+    dir = r"Duplikate"
+    finder = DuplicateFinder()
+    pairs = finder.find(dir, 10000000, True)
+
+    # for d in pairs:
+    #     print(d["a"]["path"], d["b"]["path"], d["diff"])
+
+    groups = finder.get_groups(pairs)
+    for group in groups:
+        print([item["path"] for item in group])
