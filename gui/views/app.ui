@@ -7,7 +7,7 @@
     <property name="width">800</property>
     <child>
       <object class="pygubu.builder.widgets.scrolledframe" id="container" named="True">
-        <property name="scrolltype">vertical</property>
+        <property name="scrolltype">both</property>
         <property name="usemousewheel">true</property>
         <layout manager="pack">
           <property name="expand">true</property>

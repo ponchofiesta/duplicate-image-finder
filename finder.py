@@ -72,25 +72,39 @@ class DuplicateFinder:
 
     def get_groups(self, pairs):
 
-        def in_group(a, b, group):
-            for item in group:
-                if a["path"] == item["path"]:
-                    group.append(b)
-                    return True
-                elif b["path"] == item["path"]:
-                    group.append(a)
+        def contains(list, filter):
+            for x in list:
+                if filter(x):
                     return True
             return False
 
-        groups = []
-        for pair in pairs:
+        def in_group(a, b, group):
+            has_a = contains(group, lambda x: x["path"] == a["path"])
+            has_b = contains(group, lambda x: x["path"] == b["path"])
+            if has_a:
+                if not has_b:
+                    group.append(b)
+                return True
+            elif has_b:
+                if not has_a:
+                    group.append(b)
+                return True
+            return False
+
+        def in_groups(a, b, groups):
             found = False
             for group in groups:
-                if in_group(pair["a"], pair["b"], group):
+                if in_group(a, b, group):
                     found = True
-            if not found:
-                groups.append([pair["a"], pair["b"]])
+                    break
 
+            if not found:
+                groups.append([a, b])
+
+        groups = []
+        for pair in pairs:
+            in_groups(pair["a"], pair["b"], groups)
+            
         return groups
 
 
