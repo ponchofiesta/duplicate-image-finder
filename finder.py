@@ -1,5 +1,6 @@
 import os
 from multiprocessing.pool import ThreadPool
+import re
 
 import imageio.v3 as iio
 import numpy as np
@@ -22,12 +23,13 @@ class DuplicateFinder:
         self._progress = progress
 
         # Prepare file paths
-        abs_paths = [os.path.join(path, file) for file in os.listdir(path)]
+        abs_paths = [os.path.join(path, file) for file in os.listdir(path) if re.match('.*\.(jpe?g)$', file, re.I) is not None]
 
         # Get all histograms
         self._log("Creating histograms...")
         with ThreadPool() as pool:
-            histograms = self._process(pool.imap_unordered(self.get_histogram, abs_paths), len(abs_paths), )
+            histograms = self._process(pool.imap_unordered(self.get_histogram, abs_paths), len(abs_paths))
+        histograms = [histogram for histogram in histograms if histogram is not None]
 
         # Prepare diffs
         pairs = []
@@ -50,7 +52,11 @@ class DuplicateFinder:
         return diffs
 
     def get_histogram(self, path):
-        image = iio.imread(uri=path)
+        try:
+            image = iio.imread(uri=path)
+        except Exception as e:
+            print(f"WARNING: Cannot open {path}: {e}")
+            return None
         color_histogram = {}
         for channel_id, color in enumerate(self._colors):
             histogram, bin_edges = np.histogram(image[:, :, channel_id], bins=256, range=(0, 256))
