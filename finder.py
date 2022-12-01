@@ -9,11 +9,11 @@ import tqdm
 class DuplicateFinder:
     _colors = ("red", "green", "blue")
 
-    def log(self, msg):
+    def _log(self, msg):
         if self._progress:
             print(msg)
 
-    def process(self, imap, total):
+    def _process(self, imap, total):
         if self._progress:
             return list(tqdm.tqdm(imap, total=total))
         return imap
@@ -25,9 +25,9 @@ class DuplicateFinder:
         abs_paths = [os.path.join(path, file) for file in os.listdir(path)]
 
         # Get all histograms
-        self.log("Creating histograms...")
+        self._log("Creating histograms...")
         with ThreadPool() as pool:
-            histograms = self.process(pool.imap_unordered(self.get_histogram, abs_paths), len(abs_paths), )
+            histograms = self._process(pool.imap_unordered(self.get_histogram, abs_paths), len(abs_paths), )
 
         # Prepare diffs
         pairs = []
@@ -40,9 +40,9 @@ class DuplicateFinder:
                 pairs.append(pair)
 
         # Get all diffs
-        self.log("Comparing files...")
+        self._log("Comparing files...")
         with ThreadPool() as pool:
-            diffs = self.process(pool.imap_unordered(self.get_diff, pairs), len(pairs))
+            diffs = self._process(pool.imap_unordered(self.get_diff, pairs), len(pairs))
 
         # Apply threshold
         diffs = [diff for diff in diffs if diff["diff"] < threshold]
@@ -104,19 +104,5 @@ class DuplicateFinder:
         groups = []
         for pair in pairs:
             in_groups(pair["a"], pair["b"], groups)
-            
+
         return groups
-
-
-if __name__ == "__main__":
-    #dir = r"C:\Users\poncho\Desktop\Duplikate"
-    dir = r"Duplikate"
-    finder = DuplicateFinder()
-    pairs = finder.find(dir, 10000000, True)
-
-    # for d in pairs:
-    #     print(d["a"]["path"], d["b"]["path"], d["diff"])
-
-    groups = finder.get_groups(pairs)
-    for group in groups:
-        print([item["path"] for item in group])
