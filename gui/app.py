@@ -1,7 +1,6 @@
 import os
 import pathlib
 import sys
-import time
 from tkinter import Toplevel
 from typing import List
 
@@ -49,7 +48,6 @@ class App:
         print("Removing duplicate images...")
         for path in tqdm.tqdm(delete_paths):
             try:
-                time.sleep(1)
                 os.remove(path)
             except Exception as e:
                 print(f"WARNING: Could not remove {path}: {e}", file=sys.stderr)
