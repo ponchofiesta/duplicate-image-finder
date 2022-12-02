@@ -1,5 +1,5 @@
 import pathlib
-from tkinter import IntVar
+from tkinter import IntVar, Toplevel
 from typing import List
 
 import pygubu
@@ -22,6 +22,8 @@ class Image:
 
         self.path = path
         self.checked = checked
+
+        builder.connect_callbacks(self)
 
     @property
     def path(self):
@@ -50,7 +52,8 @@ class Image:
 
         self._label.configure(image=self._image)
         self._label.image = self._image
-        tooltip = Hovertip(self._label, self.path)
+
+        self._popup = None
 
     @property
     def checked(self):
@@ -63,6 +66,13 @@ class Image:
             self._checked = IntVar(value=1)
         self._checkbox.configure(variable=self._checked)
         self._checkbox.checked = self._checked
+
+    def on_enter(self, event=None):
+        self._popup = ImageWindow(self.path, self.path, self.mainwindow)
+        self._popup.mainwindow.mainloop()
+    
+    def on_leave(self, event=None):
+        self._popup.mainwindow.destroy()
 
 
 class ImageGroup:
@@ -109,3 +119,40 @@ class ImageGroup:
             if i == 0:
                 image.checked = False
             self._images.append(image)
+
+
+class ImageWindow:
+    def __init__(self, title="", path=None, master=None) -> None:
+        self.builder = builder = pygubu.Builder()
+        builder.add_resource_path(VIEWS_PATH)
+        builder.add_from_file(VIEWS_PATH / "image_window.ui")
+        self.mainwindow: Toplevel = builder.get_object('imageWindow', master)
+        self._label_title = builder.get_object('labelTitle')
+        self._label_image = builder.get_object('labelImage')
+
+        self.mainwindow.attributes("-toolwindow", True)
+    
+    @property
+    def title(self):
+        return self._title
+
+    @title.setter
+    def title(self, value):
+        self._title = value
+        self._label_title.configure(text=self._title)
+    
+    @property
+    def path(self):
+        return self._path
+
+    @path.setter
+    def path(self, value):
+        self._path = value
+        self._path.configure(text=self._path)
+
+    # TODO mouse move
+    # def motion(event):
+    #     x, y = event.x, event.y
+    #     print('{}, {}'.format(x, y))
+
+    # root.bind('<Motion>', motion)

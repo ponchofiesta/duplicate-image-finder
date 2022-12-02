@@ -67,5 +67,5 @@ class App:
     def run(self):
         self.mainwindow.lift()
         self.mainwindow.attributes('-topmost', True)
-        self.mainwindow.after_idle(self.mainwindow.attributes, '-topmost',False)
+        self.mainwindow.after_idle(self.mainwindow.attributes, '-topmost', False)
         self.mainwindow.mainloop()

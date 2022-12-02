@@ -9,6 +9,8 @@
     <child>
       <object class="ttk.Label" id="imageLabel" named="True">
         <property name="text" translatable="yes">label1</property>
+        <bind sequence="&lt;Enter&gt;" handler="on_enter" add="" />
+        <bind sequence="&lt;Leave&gt;" handler="on_leave" add="" />
         <layout manager="pack">
           <property name="side">top</property>
         </layout>
