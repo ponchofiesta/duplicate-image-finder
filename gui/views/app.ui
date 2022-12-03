@@ -5,6 +5,7 @@
     <property name="minsize">400|300</property>
     <property name="title" translatable="yes">Duplicate Image Finder</property>
     <property name="width">800</property>
+    <bind sequence="&lt;Motion&gt;" handler="on_mousemove" add="True" />
     <child>
       <object class="pygubu.builder.widgets.scrolledframe" id="container" named="True">
         <property name="scrolltype">both</property>

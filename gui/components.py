@@ -1,23 +1,38 @@
 import pathlib
-from tkinter import IntVar, Toplevel
+from tkinter import BaseWidget, Frame, IntVar, Label, Toplevel
 from typing import List
 
 import pygubu
-from idlelib.tooltip import Hovertip
-from PIL import ExifTags
-from PIL import Image as PILImage
-from PIL import ImageTk
+
+from gui.graphics import load_image
 
 VIEWS_PATH = pathlib.Path(__file__).parent / "views"
 
 
-class Image:
-    def __init__(self, path: str, checked=False, master=None) -> None:
+class Widget:
+    def __init__(self, parent: BaseWidget) -> None:
+        self._widget = None
+        self._parent = parent
+
+    @property
+    def widget(self):
+        return self._widget
+
+    @property
+    def parent(self):
+        return self._parent
+
+class Image(Widget):
+    def __init__(self, path: str, checked=False, parent=None, image_window=None) -> None:
+        Widget.__init__(self, parent)
+        
+        self._image_window = image_window
+
         self.builder = builder = pygubu.Builder()
         builder.add_resource_path(VIEWS_PATH)
         builder.add_from_file(VIEWS_PATH / "image.ui")
-        self.mainwindow = builder.get_object('imageFrame', master)
-        self._label = builder.get_object('imageLabel')
+        self._widget: Frame = builder.get_object('imageFrame', parent)
+        self._label: Label = builder.get_object('imageLabel')
         self._checkbox = builder.get_object('imageCheckbox')
 
         self.path = path
@@ -31,29 +46,15 @@ class Image:
 
     @path.setter
     def path(self, value):
+        if value == getattr(self, "_path", None):
+            return
+
         self._path = value
 
-        image = PILImage.open(self._path)
-        image.thumbnail((128, 128), PILImage.BICUBIC)
-
-        # Rotate image according to EXIF data
-        for orientation in ExifTags.TAGS.keys():
-            if ExifTags.TAGS[orientation] == 'Orientation':
-                break
-        exif = image._getexif()
-        if exif[orientation] == 3:
-            image = image.rotate(180, expand=True)
-        elif exif[orientation] == 6:
-            image = image.rotate(270, expand=True)
-        elif exif[orientation] == 8:
-            image = image.rotate(90, expand=True)
-
-        self._image = ImageTk.PhotoImage(image)
+        self._image = load_image(self._path, width=128)
 
         self._label.configure(image=self._image)
         self._label.image = self._image
-
-        self._popup = None
 
     @property
     def checked(self):
@@ -68,24 +69,27 @@ class Image:
         self._checkbox.checked = self._checked
 
     def on_enter(self, event=None):
-        self._popup = ImageWindow(self.path, self.path, self.mainwindow)
-        self._popup.mainwindow.mainloop()
+        self._image_window.title = self.path
+        self._image_window.path = self.path
+        self._image_window.mainwindow.deiconify()
     
     def on_leave(self, event=None):
-        self._popup.mainwindow.destroy()
+        self._image_window.mainwindow.withdraw()
 
 
-class ImageGroup:
-    def __init__(self, image_paths: List[str], title="", master=None) -> None:
+class ImageGroup(Widget):
+    def __init__(self, image_paths: List[str], title="", image_window=None, parent=None) -> None:
+        Widget.__init__(self, parent)
 
         self._images: List[Image] = []
+        self._image_window = image_window
 
         self.builder = builder = pygubu.Builder()
         builder.add_resource_path(VIEWS_PATH)
         builder.add_from_file(VIEWS_PATH / "image_group.ui")
-        self.mainwindow = builder.get_object('imageGroup', master)
-        self._label = builder.get_object('imageGroupLabel')
-        self._image_list = builder.get_object('imageGroupList')
+        self._widget: Frame = builder.get_object('imageGroup', parent)
+        self._label: Label = builder.get_object('imageGroupLabel')
+        self._image_list: Frame = builder.get_object('imageGroupList')
 
         self.title = title
         self.paths = image_paths
@@ -115,23 +119,31 @@ class ImageGroup:
     def load_images(self):
         self._images = []
         for i, path in enumerate(self._image_paths):
-            image = Image(path, checked=True, master=self._image_list)
+            image = Image(path, checked=True, parent=self._image_list, image_window=self._image_window)
             if i == 0:
                 image.checked = False
             self._images.append(image)
 
 
-class ImageWindow:
-    def __init__(self, title="", path=None, master=None) -> None:
+class ImageWindow(Widget):
+    def __init__(self, title="", path=None, parent=None) -> None:
+        Widget.__init__(self, parent)
         self.builder = builder = pygubu.Builder()
         builder.add_resource_path(VIEWS_PATH)
         builder.add_from_file(VIEWS_PATH / "image_window.ui")
-        self.mainwindow: Toplevel = builder.get_object('imageWindow', master)
+        self._parent: Toplevel = builder.get_object('imageWindow', parent)
         self._label_title = builder.get_object('labelTitle')
         self._label_image = builder.get_object('labelImage')
 
-        self.mainwindow.attributes("-toolwindow", True)
+        self._parent.withdraw()
+        self._parent.overrideredirect(True)
+
+        builder.connect_callbacks(self)
     
+    @property
+    def mainwindow(self) -> Toplevel:
+        return self._parent
+
     @property
     def title(self):
         return self._title
@@ -148,11 +160,10 @@ class ImageWindow:
     @path.setter
     def path(self, value):
         self._path = value
-        self._path.configure(text=self._path)
+        screen_height = self.mainwindow.winfo_screenheight()
+        image = load_image(self._path, width=screen_height * 0.8)
+        self._label_image.image = image
+        self._label_image.configure(image=image)
 
-    # TODO mouse move
-    # def motion(event):
-    #     x, y = event.x, event.y
-    #     print('{}, {}'.format(x, y))
-
-    # root.bind('<Motion>', motion)
+    def on_configure_title(self, event=None):
+        self._label_title.configure(wraplength=self._label_image.winfo_width())

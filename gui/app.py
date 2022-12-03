@@ -7,7 +7,7 @@ from typing import List
 import pygubu
 import tqdm
 
-from gui.components import ImageGroup
+from gui.components import ImageGroup, ImageWindow
 
 VIEWS_PATH = pathlib.Path(__file__).parent / "views"
 
@@ -18,7 +18,11 @@ class App:
         builder.add_resource_path(VIEWS_PATH)
         builder.add_from_file(VIEWS_PATH / "app.ui")
         self.mainwindow: Toplevel = builder.get_object("mainWindow", master)
+        self.mainwindow.grab_set()
+        self.mainwindow.focus()
         self._groups_frame = builder.get_object("container")
+
+        self._image_window = ImageWindow(parent=self.mainwindow)
 
         self.groups = groups
         self._master = master
@@ -57,11 +61,35 @@ class App:
     def on_cancel(self, event=None):
         self.mainwindow.destroy()
 
+    def on_mousemove(self, event=None):
+
+        space = 16
+        bottom = 80
+
+        mouse_x = self.mainwindow.winfo_pointerx()
+        mouse_y = self.mainwindow.winfo_pointery()
+        screen_width = self.mainwindow.winfo_screenwidth()
+        screen_height = self.mainwindow.winfo_screenheight()
+        window_width = self._image_window.mainwindow.winfo_width()
+        window_height = self._image_window.mainwindow.winfo_height()
+        
+        if mouse_x > screen_width / 2:
+            window_x = mouse_x - window_width - space - space
+        else:
+            window_x = mouse_x + space
+
+        if mouse_y > screen_height - window_height - bottom:
+            window_y = screen_height - window_height + space - bottom
+        else:
+            window_y = mouse_y + space
+        
+        self._image_window.mainwindow.geometry('+%d+%d' % (window_x, window_y))
+
     def load_images(self):
         self._image_groups = []
         for i, group in enumerate(self._groups):
             paths = [item["path"] for item in group]
-            group = ImageGroup(paths, title=f"Group {i}", master=self._groups_frame.innerframe)
+            group = ImageGroup(paths, title=f"Group {i}", parent=self._groups_frame.innerframe, image_window=self._image_window)
             self._image_groups.append(group)
 
     def run(self):
