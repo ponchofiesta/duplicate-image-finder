@@ -1,5 +1,6 @@
 import os
 from multiprocessing.pool import ThreadPool
+from pathlib import Path
 import re
 
 import imageio.v3 as iio
@@ -22,8 +23,17 @@ class DuplicateFinder:
     def find(self, path, threshold=10_000_000, progress=False):
         self._progress = progress
 
-        # Prepare file paths
-        abs_paths = [os.path.join(path, file) for file in os.listdir(path) if re.match('.*\.(jpe?g)$', file, re.I) is not None]
+        # Get all file paths
+        def get_paths(path: Path):
+            for entry in path.rglob('*'):
+                if entry.is_file():
+                    if re.match('.*\.(jpe?g)$', entry.name, re.I) is not None:
+                        abs_paths.append(entry.absolute())
+                elif entry.is_dir():
+                    get_paths(entry)
+
+        abs_paths = []
+        get_paths(Path(path))
 
         # Get all histograms
         self._log("Creating histograms...")

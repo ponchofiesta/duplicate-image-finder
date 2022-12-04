@@ -7,25 +7,24 @@ from typing import List
 import pygubu
 import tqdm
 
-from gui.components import ImageGroup, ImageWindow
+from gui.components import ImageGroup, ImageWindow, Widget
 
 VIEWS_PATH = pathlib.Path(__file__).parent / "views"
 
 
-class App:
-    def __init__(self, groups: List, master=None):
+class App(Widget):
+    def __init__(self, groups: List, parent=None):
+        Widget.__init__(self, parent)
         builder = pygubu.Builder()
         builder.add_resource_path(VIEWS_PATH)
         builder.add_from_file(VIEWS_PATH / "app.ui")
-        self.mainwindow: Toplevel = builder.get_object("mainWindow", master)
-        self.mainwindow.grab_set()
-        self.mainwindow.focus()
+        self.widget: Toplevel = builder.get_object("mainWindow", parent)
         self._groups_frame = builder.get_object("container")
 
-        self._image_window = ImageWindow(parent=self.mainwindow)
+        self._image_window = ImageWindow(parent=self.parent)
 
         self.groups = groups
-        self._master = master
+        self.parent = parent
 
         builder.connect_callbacks(self)
 
@@ -56,22 +55,22 @@ class App:
             except Exception as e:
                 print(f"WARNING: Could not remove {path}: {e}", file=sys.stderr)
 
-        self.mainwindow.destroy()
+        self.widget.destroy()
 
     def on_cancel(self, event=None):
-        self.mainwindow.destroy()
+        self.widget.destroy()
 
     def on_mousemove(self, event=None):
 
-        space = 16
+        space = 32
         bottom = 80
 
-        mouse_x = self.mainwindow.winfo_pointerx()
-        mouse_y = self.mainwindow.winfo_pointery()
-        screen_width = self.mainwindow.winfo_screenwidth()
-        screen_height = self.mainwindow.winfo_screenheight()
-        window_width = self._image_window.mainwindow.winfo_width()
-        window_height = self._image_window.mainwindow.winfo_height()
+        mouse_x = self.widget.winfo_pointerx()
+        mouse_y = self.widget.winfo_pointery()
+        screen_width = self.widget.winfo_screenwidth()
+        screen_height = self.widget.winfo_screenheight()
+        window_width = self._image_window.widget.winfo_width()
+        window_height = self._image_window.widget.winfo_height()
         
         if mouse_x > screen_width / 2:
             window_x = mouse_x - window_width - space - space
@@ -83,7 +82,7 @@ class App:
         else:
             window_y = mouse_y + space
         
-        self._image_window.mainwindow.geometry('+%d+%d' % (window_x, window_y))
+        self._image_window.widget.geometry('+%d+%d' % (window_x, window_y))
 
     def load_images(self):
         self._image_groups = []
@@ -93,7 +92,7 @@ class App:
             self._image_groups.append(group)
 
     def run(self):
-        self.mainwindow.lift()
-        self.mainwindow.attributes('-topmost', True)
-        self.mainwindow.after_idle(self.mainwindow.attributes, '-topmost', False)
-        self.mainwindow.mainloop()
+        self.widget.lift()
+        self.widget.attributes('-topmost', True)
+        self.widget.after_idle(self.widget.attributes, '-topmost', False)
+        self.widget.mainloop()

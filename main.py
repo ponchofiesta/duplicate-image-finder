@@ -6,6 +6,8 @@ from gui.app import App
 
 if __name__ == "__main__":
     directory = filedialog.askdirectory(initialdir=os.getcwd())
+    if directory == '':
+        exit()
     print(directory)
 
     finder = DuplicateFinder()

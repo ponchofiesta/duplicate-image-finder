@@ -1,5 +1,7 @@
 import pathlib
-from tkinter import BaseWidget, Frame, IntVar, Label, Toplevel
+from tkinter import BaseWidget, Frame, IntVar, Label, Toplevel, Checkbutton
+import tkinter
+from tkinter.ttk import Style
 from typing import List
 
 import pygubu
@@ -15,12 +17,21 @@ class Widget:
         self._parent = parent
 
     @property
-    def widget(self):
+    def widget(self) -> BaseWidget:
         return self._widget
+
+    @widget.setter
+    def widget(self, value: BaseWidget):
+        self._widget = value
 
     @property
     def parent(self):
         return self._parent
+
+    @parent.setter
+    def parent(self, value: BaseWidget):
+        self._parent = value
+    
 
 class Image(Widget):
     def __init__(self, path: str, checked=False, parent=None, image_window=None) -> None:
@@ -31,9 +42,10 @@ class Image(Widget):
         self.builder = builder = pygubu.Builder()
         builder.add_resource_path(VIEWS_PATH)
         builder.add_from_file(VIEWS_PATH / "image.ui")
-        self._widget: Frame = builder.get_object('imageFrame', parent)
+        self.widget: Frame = builder.get_object('imageFrame', parent)
         self._label: Label = builder.get_object('imageLabel')
-        self._checkbox = builder.get_object('imageCheckbox')
+        self._checkbox: Checkbutton = builder.get_object('imageCheckbox')
+        Style().map("TCheckbutton", background=[('selected', '#ff6363'), ('', '#63ff63')])
 
         self.path = path
         self.checked = checked
@@ -65,16 +77,21 @@ class Image(Widget):
         self._checked = IntVar(value=0)
         if value:
             self._checked = IntVar(value=1)
+        # style = Style(self._checkbox)
+        # style.configure('TCheckbutton', background='#ff6363')
         self._checkbox.configure(variable=self._checked)
         self._checkbox.checked = self._checked
 
     def on_enter(self, event=None):
         self._image_window.title = self.path
         self._image_window.path = self.path
-        self._image_window.mainwindow.deiconify()
+        self._image_window.widget.deiconify()
     
     def on_leave(self, event=None):
-        self._image_window.mainwindow.withdraw()
+        self._image_window.widget.withdraw()
+    
+    def on_click(self, event=None):
+        self.checked = not self.checked
 
 
 class ImageGroup(Widget):
@@ -131,18 +148,15 @@ class ImageWindow(Widget):
         self.builder = builder = pygubu.Builder()
         builder.add_resource_path(VIEWS_PATH)
         builder.add_from_file(VIEWS_PATH / "image_window.ui")
-        self._parent: Toplevel = builder.get_object('imageWindow', parent)
+        self.widget: Toplevel = builder.get_object('imageWindow', parent)
         self._label_title = builder.get_object('labelTitle')
         self._label_image = builder.get_object('labelImage')
 
-        self._parent.withdraw()
-        self._parent.overrideredirect(True)
+        self.widget.withdraw()
+        self.widget.overrideredirect(True)
 
         builder.connect_callbacks(self)
     
-    @property
-    def mainwindow(self) -> Toplevel:
-        return self._parent
 
     @property
     def title(self):
@@ -160,7 +174,7 @@ class ImageWindow(Widget):
     @path.setter
     def path(self, value):
         self._path = value
-        screen_height = self.mainwindow.winfo_screenheight()
+        screen_height = self.widget.winfo_screenheight()
         image = load_image(self._path, width=screen_height * 0.8)
         self._label_image.image = image
         self._label_image.configure(image=image)
