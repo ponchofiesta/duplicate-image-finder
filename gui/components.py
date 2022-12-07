@@ -1,8 +1,7 @@
 import pathlib
-from tkinter import BaseWidget, Frame, IntVar, Label, Toplevel, Checkbutton
-import tkinter
-from tkinter.ttk import Style
-from typing import List
+from tkinter import BaseWidget, IntVar, Toplevel
+from tkinter.ttk import Button, Checkbutton, Frame, Label, Progressbar, Style
+from typing import Callable, List, Optional
 
 import pygubu
 
@@ -35,7 +34,7 @@ class Widget:
 
 class Image(Widget):
     def __init__(self, path: str, checked=False, parent=None, image_window=None) -> None:
-        Widget.__init__(self, parent)
+        super().__init__(parent)
         
         self._image_window = image_window
 
@@ -96,7 +95,7 @@ class Image(Widget):
 
 class ImageGroup(Widget):
     def __init__(self, image_paths: List[str], title="", image_window=None, parent=None) -> None:
-        Widget.__init__(self, parent)
+        super().__init__(parent)
 
         self._images: List[Image] = []
         self._image_window = image_window
@@ -144,7 +143,7 @@ class ImageGroup(Widget):
 
 class ImageWindow(Widget):
     def __init__(self, title="", path=None, parent=None) -> None:
-        Widget.__init__(self, parent)
+        super().__init__(parent)
         self.builder = builder = pygubu.Builder()
         builder.add_resource_path(VIEWS_PATH)
         builder.add_from_file(VIEWS_PATH / "image_window.ui")
@@ -157,7 +156,6 @@ class ImageWindow(Widget):
 
         builder.connect_callbacks(self)
     
-
     @property
     def title(self):
         return self._title
@@ -181,3 +179,116 @@ class ImageWindow(Widget):
 
     def on_configure_title(self, event=None):
         self._label_title.configure(wraplength=self._label_image.winfo_width())
+
+
+class ProgressWindow(Widget):
+    def __init__(self, cancel_handler: Callable, parent: BaseWidget) -> None:
+        super().__init__(parent)
+
+        self._cancel_handler = cancel_handler
+
+        self.builder = builder = pygubu.Builder()
+        builder.add_resource_path(VIEWS_PATH)
+        builder.add_from_file(VIEWS_PATH / "progress_window.ui")
+        self._label_status: Label = builder.get_object('labelStatus')
+        self._progressbar: Progressbar = builder.get_object('progressbar')
+        self._button_cancel: Button = builder.get_object('imageGroupList')
+
+        self.update(0)
+
+        builder.connect_callbacks(self)
+
+    def update(self, value: int, status: Optional[str] = None):
+        if status is not None:
+            self._label_status.configure(text=status)
+        self._progressbar.configure(value=value)
+
+    def on_cancel(self, event=None):
+        if self._cancel_handler is not None:
+            self._cancel_handler()
+
+
+class SelectionWindow(Widget):
+    def __init__(self, groups: List, parent=None):
+        Widget.__init__(self, parent)
+        builder = pygubu.Builder()
+        builder.add_resource_path(VIEWS_PATH)
+        builder.add_from_file(VIEWS_PATH / "app.ui")
+        self.widget: Toplevel = builder.get_object("mainWindow", parent)
+        self._groups_frame = builder.get_object("container")
+
+        self._image_window = ImageWindow(parent=self.parent)
+
+        self.groups = groups
+        self.parent = parent
+
+        builder.connect_callbacks(self)
+
+    @property
+    def groups(self):
+        return self._groups
+
+    @groups.setter
+    def groups(self, value):
+        self._groups = value
+        self.load_images()
+
+    @property
+    def image_groups(self):
+        return self._image_groups
+
+    def on_delete(self, event=None):
+        delete_paths = []
+        for group in self.image_groups:
+            for image in group.images:
+                if image.checked:
+                    delete_paths.append(image.path)
+
+        print("Removing duplicate images...")
+        for path in tqdm.tqdm(delete_paths):
+            try:
+                os.remove(path)
+            except Exception as e:
+                print(f"WARNING: Could not remove {path}: {e}", file=sys.stderr)
+
+        self.widget.destroy()
+
+    def on_cancel(self, event=None):
+        self.widget.destroy()
+
+    def on_mousemove(self, event=None):
+
+        space = 32
+        bottom = 80
+
+        mouse_x = self.widget.winfo_pointerx()
+        mouse_y = self.widget.winfo_pointery()
+        screen_width = self.widget.winfo_screenwidth()
+        screen_height = self.widget.winfo_screenheight()
+        window_width = self._image_window.widget.winfo_width()
+        window_height = self._image_window.widget.winfo_height()
+        
+        if mouse_x > screen_width / 2:
+            window_x = mouse_x - window_width - space - space
+        else:
+            window_x = mouse_x + space
+
+        if mouse_y > screen_height - window_height - bottom:
+            window_y = screen_height - window_height + space - bottom
+        else:
+            window_y = mouse_y + space
+        
+        self._image_window.widget.geometry('+%d+%d' % (window_x, window_y))
+
+    def load_images(self):
+        self._image_groups = []
+        for i, group in enumerate(self._groups):
+            paths = [item["path"] for item in group]
+            group = ImageGroup(paths, title=f"Group {i}", parent=self._groups_frame.innerframe, image_window=self._image_window)
+            self._image_groups.append(group)
+
+    def run(self):
+        self.widget.lift()
+        self.widget.attributes('-topmost', True)
+        self.widget.after_idle(self.widget.attributes, '-topmost', False)
+        self.widget.mainloop()

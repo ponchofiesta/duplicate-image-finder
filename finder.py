@@ -1,27 +1,21 @@
-import os
 from multiprocessing.pool import ThreadPool
 from pathlib import Path
 import re
+from typing import Any, Callable
 
 import imageio.v3 as iio
 import numpy as np
 import tqdm
 
 
+ProgressHandler = Callable[[int, str], Any]
+
+
 class DuplicateFinder:
     _colors = ("red", "green", "blue")
 
-    def _log(self, msg):
-        if self._progress:
-            print(msg)
-
-    def _process(self, imap, total):
-        if self._progress:
-            return list(tqdm.tqdm(imap, total=total))
-        return imap
-
-    def find(self, path, threshold=10_000_000, progress=False):
-        self._progress = progress
+    def find(self, path: str, threshold: int = 10_000_000, progress_handler: ProgressHandler = None):
+        self._progress_handler = progress_handler
 
         # Get all file paths
         def get_paths(path: Path):
@@ -36,10 +30,16 @@ class DuplicateFinder:
         get_paths(Path(path))
 
         # Get all histograms
-        self._log("Creating histograms...")
+        status = "Creating histograms..."
+        self._progress_handler(0, f"{status} (0/{len(abs_paths)})")
+
         with ThreadPool() as pool:
-            histograms = self._process(pool.imap_unordered(self.get_histogram, abs_paths), len(abs_paths))
-        histograms = [histogram for histogram in histograms if histogram is not None]
+            total = len(abs_paths)
+            histograms = []
+            for i, histogram in pool.imap_unordered(self.get_histogram, abs_paths):
+                self._progress_handler(i / total * 100, f"{status} (1/2)")
+                if histogram is not None:
+                    histograms.append(histogram)
 
         # Prepare diffs
         pairs = []
@@ -52,12 +52,15 @@ class DuplicateFinder:
                 pairs.append(pair)
 
         # Get all diffs
-        self._log("Comparing files...")
+        status = "Comparing files..."
+        self._progress_handler(0, f"{status} (2/2)")
+        diffs = []
         with ThreadPool() as pool:
-            diffs = self._process(pool.imap_unordered(self.get_diff, pairs), len(pairs))
-
-        # Apply threshold
-        diffs = [diff for diff in diffs if diff["diff"] < threshold]
+            total = len(pairs)
+            for i, diff in pool.imap_unordered(self.get_diff, pairs):
+                self._progress_handler(i / pairs * 100, f"{status} (2/2)")
+                if diff["threshold"] < threshold:
+                    diffs.append(diff)
 
         return diffs
 

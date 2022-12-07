@@ -1,0 +1,52 @@
+<?xml version='1.0' encoding='utf-8'?>
+<interface version="1.3">
+  <object class="tk.Toplevel" id="windowMain" named="True">
+    <property name="height">200</property>
+    <property name="width">320</property>
+    <child>
+      <object class="ttk.Frame" id="frame1">
+        <property name="height">200</property>
+        <property name="width">320</property>
+        <layout manager="pack">
+          <property name="anchor">center</property>
+          <property name="expand">true</property>
+          <property name="fill">both</property>
+          <property name="side">top</property>
+        </layout>
+        <child>
+          <object class="ttk.Label" id="labelStatus" named="True">
+            <property name="text" translatable="yes">label2</property>
+            <layout manager="pack">
+              <property name="anchor">nw</property>
+              <property name="padx">8</property>
+              <property name="pady">8</property>
+              <property name="side">top</property>
+            </layout>
+          </object>
+        </child>
+        <child>
+          <object class="ttk.Progressbar" id="progressbar" named="True">
+            <property name="orient">horizontal</property>
+            <layout manager="pack">
+              <property name="fill">x</property>
+              <property name="padx">8</property>
+              <property name="side">top</property>
+            </layout>
+          </object>
+        </child>
+        <child>
+          <object class="ttk.Button" id="buttonCancel" named="True">
+            <property name="command" type="command" cbtype="simple">on_cancel</property>
+            <property name="text" translatable="yes">Cancel</property>
+            <layout manager="pack">
+              <property name="anchor">ne</property>
+              <property name="padx">8</property>
+              <property name="pady">8</property>
+              <property name="side">top</property>
+            </layout>
+          </object>
+        </child>
+      </object>
+    </child>
+  </object>
+</interface>
