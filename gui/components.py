@@ -1,8 +1,13 @@
+from concurrent.futures import ThreadPoolExecutor
+import os
 import pathlib
 from queue import Queue
-from tkinter import BaseWidget, IntVar, Toplevel
+import sys
+import time
+from tkinter import BaseWidget, IntVar, filedialog
 from tkinter.ttk import Button, Checkbutton, Frame, Label, Progressbar, Style
 from typing import Callable, List
+from tkinterdnd2 import DND_FILES
 
 import pygubu
 
@@ -15,6 +20,7 @@ class Widget:
     def __init__(self, parent: BaseWidget) -> None:
         self._widget = None
         self._parent = parent
+        self._builder = None
 
     @property
     def widget(self) -> BaseWidget:
@@ -38,25 +44,32 @@ class Widget:
         self.widget.after_idle(self.widget.attributes, '-topmost', False)
         self.widget.mainloop()
 
+    def modal(self):
+        self.widget.wait_visibility()
+        self.widget.grab_set()
+        self.widget.transient(self.parent)
+
+    def load_view(self, path: str, id: str):
+        self._builder = builder = pygubu.Builder()
+        builder.add_resource_path(VIEWS_PATH)
+        builder.add_from_file(VIEWS_PATH / path)
+        self.widget = builder.get_object(id, self.parent)
+        builder.connect_callbacks(self)
+
 
 class Image(Widget):
     def __init__(self, path: str, checked=False, parent=None, image_window=None) -> None:
         super().__init__(parent)
 
         self._image_window = image_window
+        self.load_view("image.ui", "imageFrame")
 
-        self.builder = builder = pygubu.Builder()
-        builder.add_resource_path(VIEWS_PATH)
-        builder.add_from_file(VIEWS_PATH / "image.ui")
-        self.widget: Frame = builder.get_object('imageFrame', parent)
-        self._label: Label = builder.get_object('imageLabel')
-        self._checkbox: Checkbutton = builder.get_object('imageCheckbox')
+        self._label: Label = self._builder.get_object('imageLabel')
+        self._checkbox: Checkbutton = self._builder.get_object('imageCheckbox')
         Style().map("TCheckbutton", background=[('selected', '#ff6363'), ('', '#63ff63')])
 
         self.path = path
         self.checked = checked
-
-        builder.connect_callbacks(self)
 
     @property
     def path(self):
@@ -83,8 +96,6 @@ class Image(Widget):
         self._checked = IntVar(value=0)
         if value:
             self._checked = IntVar(value=1)
-        # style = Style(self._checkbox)
-        # style.configure('TCheckbutton', background='#ff6363')
         self._checkbox.configure(variable=self._checked)
         self._checkbox.checked = self._checked
 
@@ -107,12 +118,9 @@ class ImageGroup(Widget):
         self._images: List[Image] = []
         self._image_window = image_window
 
-        self.builder = builder = pygubu.Builder()
-        builder.add_resource_path(VIEWS_PATH)
-        builder.add_from_file(VIEWS_PATH / "image_group.ui")
-        self._widget: Frame = builder.get_object('imageGroup', parent)
-        self._label: Label = builder.get_object('imageGroupLabel')
-        self._image_list: Frame = builder.get_object('imageGroupList')
+        self.load_view("image_group.ui", "imageGroup")
+        self._label: Label = self._builder.get_object('imageGroupLabel')
+        self._image_list: Frame = self._builder.get_object('imageGroupList')
 
         self.title = title
         self.paths = image_paths
@@ -151,17 +159,13 @@ class ImageGroup(Widget):
 class ImageWindow(Widget):
     def __init__(self, title="", path=None, parent=None) -> None:
         super().__init__(parent)
-        self.builder = builder = pygubu.Builder()
-        builder.add_resource_path(VIEWS_PATH)
-        builder.add_from_file(VIEWS_PATH / "image_window.ui")
-        self.widget: Toplevel = builder.get_object('imageWindow', parent)
-        self._label_title = builder.get_object('labelTitle')
-        self._label_image = builder.get_object('labelImage')
+
+        self.load_view("image_window.ui", "imageWindow")
+        self._label_title = self._builder.get_object('labelTitle')
+        self._label_image = self._builder.get_object('labelImage')
 
         self.widget.withdraw()
         self.widget.overrideredirect(True)
-
-        builder.connect_callbacks(self)
 
     @property
     def title(self):
@@ -195,15 +199,11 @@ class ProgressWindow(Widget):
         self._queue = queue
         self._cancel_handler = cancel_handler
 
-        self.builder = builder = pygubu.Builder()
-        builder.add_resource_path(VIEWS_PATH)
-        builder.add_from_file(VIEWS_PATH / "progress_window.ui")
-        self.widget: Toplevel = builder.get_object('windowMain', parent)
-        self._label_status: Label = builder.get_object('labelStatus')
-        self._progressbar: Progressbar = builder.get_object('progressbar')
-        self._button_cancel: Button = builder.get_object('buttonCancel')
+        self.load_view("progress_window.ui", "windowMain")
 
-        builder.connect_callbacks(self)
+        self._label_status: Label = self._builder.get_object('labelStatus')
+        self._progressbar: Progressbar = self._builder.get_object('progressbar')
+        self._button_cancel: Button = self._builder.get_object('buttonCancel')
 
     def process(self):
         while self._queue.qsize():
@@ -223,18 +223,15 @@ class ProgressWindow(Widget):
 class SelectionWindow(Widget):
     def __init__(self, groups: List, parent=None):
         Widget.__init__(self, parent)
-        builder = pygubu.Builder()
-        builder.add_resource_path(VIEWS_PATH)
-        builder.add_from_file(VIEWS_PATH / "app.ui")
-        self.widget: Toplevel = builder.get_object("mainWindow", parent)
-        self._groups_frame = builder.get_object("container")
+        self._cancel = False
+        
+        self.load_view("app.ui", "mainWindow")
+        self._groups_frame = self._builder.get_object("container")
 
         self._image_window = ImageWindow(parent=self.parent)
 
         self.groups = groups
         self.parent = parent
-
-        builder.connect_callbacks(self)
 
     @property
     def groups(self):
@@ -256,14 +253,34 @@ class SelectionWindow(Widget):
                 if image.checked:
                     delete_paths.append(image.path)
 
-        print("Removing duplicate images...")
-        for path in tqdm.tqdm(delete_paths):
-            try:
-                os.remove(path)
-            except Exception as e:
-                print(f"WARNING: Could not remove {path}: {e}", file=sys.stderr)
+        #print("Removing duplicate images...")
+        #TODO: adapt deletion progress
+        self._queue = Queue()
+        self._cancel = False
+    
+        def on_cancel():
+            self._cancel = True
 
-        self.widget.destroy()
+        self._progress_window = ProgressWindow(self._queue, cancel_handler=on_cancel)
+
+        def remove_runner():
+            total = len(delete_paths)
+            for i, path in enumerate(delete_paths):
+                try:
+                    if self._cancel:
+                        return
+                    #os.remove(path)
+                    time.sleep(200)
+                    self.on_progress(i / total * 100, "Removing duplicate images...")
+                except Exception as e:
+                    print(f"WARNING: Could not remove {path}: {e}", file=sys.stderr)
+            self._progress_running = False
+
+        self._progress_running = True
+        with ThreadPoolExecutor() as executor:
+            executor.submit(remove_runner)
+            self.progress_loop()
+            self._progress_window.modal()
 
     def on_cancel(self, event=None):
         self.widget.destroy()
@@ -299,3 +316,34 @@ class SelectionWindow(Widget):
             group = ImageGroup(paths, title=f"Group {i}",
                                parent=self._groups_frame.innerframe, image_window=self._image_window)
             self._image_groups.append(group)
+
+    def on_progress(self, value, status):
+        self._queue.put(dict(value=value, status=status))
+
+    def progress_loop(self):
+        self._progress_window.process()
+        if self._progress_running:
+            self._progress_window.widget.after(200, self.progress_loop)
+        else:
+            self._progress_window.widget.destroy()
+            self.widget.destroy()
+
+
+# class OpenWindow(Widget):
+#     def __init__(self, parent: BaseWidget = None) -> None:
+#         super().__init__(parent)
+#         self.load_view("open_window.ui", "openWindow")
+#         self.widget.drop_target_register(DND_FILES)
+#         self.widget.dnd_bind("<<Drop>>", self.on_drop)
+
+#     def get_directory(self, initialdir=os.getcwd()):
+#         self._directory = initialdir
+#         self.run()
+#         return self._directory
+    
+#     def on_click(self):
+#         self._directory = filedialog.askdirectory(initialdir=self._directory)
+#         self.widget.destroy()
+
+#     def on_drop(self, event):
+#         print(event)

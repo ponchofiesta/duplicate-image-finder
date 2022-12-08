@@ -18,6 +18,7 @@ class App:
         directory = os.getcwd()
         while True:
             directory = filedialog.askdirectory(initialdir=directory)
+            #directory = OpenWindow().get_directory()
             if directory == '':
                 return
 

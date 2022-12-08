@@ -1,0 +1,34 @@
+<?xml version='1.0' encoding='utf-8'?>
+<interface version="1.3">
+  <object class="tk.Toplevel" id="openWindow" named="True">
+    <property name="height">200</property>
+    <property name="minsize">300|300</property>
+    <property name="width">200</property>
+    <bind sequence="&lt;Button&gt;" handler="on_click" add="" />
+    <child>
+      <object class="ttk.Frame" id="frame1">
+        <property name="height">200</property>
+        <property name="width">200</property>
+        <layout manager="pack">
+          <property name="expand">true</property>
+          <property name="fill">both</property>
+          <property name="side">top</property>
+        </layout>
+        <containerlayout manager="pack">
+          <property name="anchor">center</property>
+        </containerlayout>
+        <child>
+          <object class="ttk.Label" id="label1">
+            <property name="justify">center</property>
+            <property name="text" translatable="yes">Click or drag to select a folder</property>
+            <layout manager="pack">
+              <property name="expand">true</property>
+              <property name="fill">both</property>
+              <property name="side">top</property>
+            </layout>
+          </object>
+        </child>
+      </object>
+    </child>
+  </object>
+</interface>
