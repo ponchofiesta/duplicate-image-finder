@@ -1,12 +1,10 @@
+import re
 from multiprocessing.pool import ThreadPool
 from pathlib import Path
-import re
-from typing import Any, Callable
+from typing import Any, Callable, List
 
 import imageio.v3 as iio
 import numpy as np
-import tqdm
-
 
 ProgressHandler = Callable[[int, str], Any]
 
@@ -14,12 +12,26 @@ ProgressHandler = Callable[[int, str], Any]
 class DuplicateFinder:
     _colors = ("red", "green", "blue")
 
+    def __init__(self) -> None:
+        self.cancel = False
+
+    @property
+    def cancel(self) -> bool:
+        return self._cancel
+
+    @cancel.setter
+    def cancel(self, value: bool):
+        self._cancel = value
+
     def find(self, path: str, threshold: int = 10_000_000, progress_handler: ProgressHandler = None):
         self._progress_handler = progress_handler
 
         # Get all file paths
-        def get_paths(path: Path):
+        def get_paths(path: Path) -> List[Path]:
             for entry in path.rglob('*'):
+                if self.cancel:
+                    return []
+
                 if entry.is_file():
                     if re.match('.*\.(jpe?g)$', entry.name, re.I) is not None:
                         abs_paths.append(entry.absolute())
@@ -31,12 +43,15 @@ class DuplicateFinder:
 
         # Get all histograms
         status = "Creating histograms..."
-        self._progress_handler(0, f"{status} (0/{len(abs_paths)})")
+        self._progress_handler(0, f"{status} (1/2)")
 
         with ThreadPool() as pool:
             total = len(abs_paths)
             histograms = []
-            for i, histogram in pool.imap_unordered(self.get_histogram, abs_paths):
+            for i, histogram in enumerate(pool.imap_unordered(self.get_histogram, abs_paths)):
+                if self.cancel:
+                    pool.terminate()
+                    return []
                 self._progress_handler(i / total * 100, f"{status} (1/2)")
                 if histogram is not None:
                     histograms.append(histogram)
@@ -57,9 +72,12 @@ class DuplicateFinder:
         diffs = []
         with ThreadPool() as pool:
             total = len(pairs)
-            for i, diff in pool.imap_unordered(self.get_diff, pairs):
-                self._progress_handler(i / pairs * 100, f"{status} (2/2)")
-                if diff["threshold"] < threshold:
+            for i, diff in enumerate(pool.imap_unordered(self.get_diff, pairs)):
+                if self.cancel:
+                    pool.terminate()
+                    return []
+                self._progress_handler(i / total * 100, f"{status} (2/2)")
+                if diff["diff"] < threshold:
                     diffs.append(diff)
 
         return diffs

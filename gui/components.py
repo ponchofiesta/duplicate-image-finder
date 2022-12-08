@@ -1,7 +1,8 @@
 import pathlib
+from queue import Queue
 from tkinter import BaseWidget, IntVar, Toplevel
 from tkinter.ttk import Button, Checkbutton, Frame, Label, Progressbar, Style
-from typing import Callable, List, Optional
+from typing import Callable, List
 
 import pygubu
 
@@ -30,12 +31,18 @@ class Widget:
     @parent.setter
     def parent(self, value: BaseWidget):
         self._parent = value
-    
+
+    def run(self):
+        self.widget.lift()
+        self.widget.attributes('-topmost', True)
+        self.widget.after_idle(self.widget.attributes, '-topmost', False)
+        self.widget.mainloop()
+
 
 class Image(Widget):
     def __init__(self, path: str, checked=False, parent=None, image_window=None) -> None:
         super().__init__(parent)
-        
+
         self._image_window = image_window
 
         self.builder = builder = pygubu.Builder()
@@ -85,10 +92,10 @@ class Image(Widget):
         self._image_window.title = self.path
         self._image_window.path = self.path
         self._image_window.widget.deiconify()
-    
+
     def on_leave(self, event=None):
         self._image_window.widget.withdraw()
-    
+
     def on_click(self, event=None):
         self.checked = not self.checked
 
@@ -155,7 +162,7 @@ class ImageWindow(Widget):
         self.widget.overrideredirect(True)
 
         builder.connect_callbacks(self)
-    
+
     @property
     def title(self):
         return self._title
@@ -164,7 +171,7 @@ class ImageWindow(Widget):
     def title(self, value):
         self._title = value
         self._label_title.configure(text=self._title)
-    
+
     @property
     def path(self):
         return self._path
@@ -182,26 +189,31 @@ class ImageWindow(Widget):
 
 
 class ProgressWindow(Widget):
-    def __init__(self, cancel_handler: Callable, parent: BaseWidget) -> None:
+    def __init__(self, queue: Queue, cancel_handler: Callable, parent: BaseWidget = None) -> None:
         super().__init__(parent)
 
+        self._queue = queue
         self._cancel_handler = cancel_handler
 
         self.builder = builder = pygubu.Builder()
         builder.add_resource_path(VIEWS_PATH)
         builder.add_from_file(VIEWS_PATH / "progress_window.ui")
+        self.widget: Toplevel = builder.get_object('windowMain', parent)
         self._label_status: Label = builder.get_object('labelStatus')
         self._progressbar: Progressbar = builder.get_object('progressbar')
-        self._button_cancel: Button = builder.get_object('imageGroupList')
-
-        self.update(0)
+        self._button_cancel: Button = builder.get_object('buttonCancel')
 
         builder.connect_callbacks(self)
 
-    def update(self, value: int, status: Optional[str] = None):
-        if status is not None:
-            self._label_status.configure(text=status)
-        self._progressbar.configure(value=value)
+    def process(self):
+        while self._queue.qsize():
+            try:
+                msg = self._queue.get(0)
+                if msg["status"] is not None:
+                    self._label_status.configure(text=msg["status"])
+                self._progressbar.configure(value=msg["value"])
+            except Queue.Empty:
+                pass
 
     def on_cancel(self, event=None):
         if self._cancel_handler is not None:
@@ -267,7 +279,7 @@ class SelectionWindow(Widget):
         screen_height = self.widget.winfo_screenheight()
         window_width = self._image_window.widget.winfo_width()
         window_height = self._image_window.widget.winfo_height()
-        
+
         if mouse_x > screen_width / 2:
             window_x = mouse_x - window_width - space - space
         else:
@@ -277,18 +289,13 @@ class SelectionWindow(Widget):
             window_y = screen_height - window_height + space - bottom
         else:
             window_y = mouse_y + space
-        
+
         self._image_window.widget.geometry('+%d+%d' % (window_x, window_y))
 
     def load_images(self):
         self._image_groups = []
         for i, group in enumerate(self._groups):
             paths = [item["path"] for item in group]
-            group = ImageGroup(paths, title=f"Group {i}", parent=self._groups_frame.innerframe, image_window=self._image_window)
+            group = ImageGroup(paths, title=f"Group {i}",
+                               parent=self._groups_frame.innerframe, image_window=self._image_window)
             self._image_groups.append(group)
-
-    def run(self):
-        self.widget.lift()
-        self.widget.attributes('-topmost', True)
-        self.widget.after_idle(self.widget.attributes, '-topmost', False)
-        self.widget.mainloop()
