@@ -1,17 +1,19 @@
-from concurrent.futures import ThreadPoolExecutor
-import os
 import pathlib
-from queue import Queue
+import queue
 import sys
 import time
-from tkinter import BaseWidget, IntVar, filedialog
+from concurrent.futures import ThreadPoolExecutor
+from queue import Queue
+from tkinter import BaseWidget, IntVar, messagebox
 from tkinter.ttk import Button, Checkbutton, Frame, Label, Progressbar, Style
 from typing import Callable, List
-from tkinterdnd2 import DND_FILES
 
 import pygubu
 
 from gui.graphics import load_image
+
+#from tkinterdnd2 import DND_FILES
+
 
 VIEWS_PATH = pathlib.Path(__file__).parent / "views"
 
@@ -43,11 +45,6 @@ class Widget:
         self.widget.attributes('-topmost', True)
         self.widget.after_idle(self.widget.attributes, '-topmost', False)
         self.widget.mainloop()
-
-    def modal(self):
-        self.widget.wait_visibility()
-        self.widget.grab_set()
-        self.widget.transient(self.parent)
 
     def load_view(self, path: str, id: str):
         self._builder = builder = pygubu.Builder()
@@ -201,19 +198,26 @@ class ProgressWindow(Widget):
 
         self.load_view("progress_window.ui", "windowMain")
 
+        # Modal window
+        if parent is not None:
+            self.widget.transient(parent)
+            self.widget.grab_set()
+
         self._label_status: Label = self._builder.get_object('labelStatus')
         self._progressbar: Progressbar = self._builder.get_object('progressbar')
         self._button_cancel: Button = self._builder.get_object('buttonCancel')
 
     def process(self):
-        while self._queue.qsize():
+        if self._queue.qsize() == 0:
+            return
+        while True:
             try:
-                msg = self._queue.get(0)
-                if msg["status"] is not None:
-                    self._label_status.configure(text=msg["status"])
-                self._progressbar.configure(value=msg["value"])
-            except Queue.Empty:
-                pass
+                msg = self._queue.get(False)
+            except queue.Empty:
+                break
+        if msg["status"] is not None:
+            self._label_status.configure(text=msg["status"])
+        self._progressbar.configure(value=msg["value"])
 
     def on_cancel(self, event=None):
         if self._cancel_handler is not None:
@@ -224,7 +228,7 @@ class SelectionWindow(Widget):
     def __init__(self, groups: List, parent=None):
         Widget.__init__(self, parent)
         self._cancel = False
-        
+
         self.load_view("app.ui", "mainWindow")
         self._groups_frame = self._builder.get_object("container")
 
@@ -253,15 +257,13 @@ class SelectionWindow(Widget):
                 if image.checked:
                     delete_paths.append(image.path)
 
-        #print("Removing duplicate images...")
-        #TODO: adapt deletion progress
         self._queue = Queue()
         self._cancel = False
-    
+
         def on_cancel():
             self._cancel = True
 
-        self._progress_window = ProgressWindow(self._queue, cancel_handler=on_cancel)
+        self._progress_window = ProgressWindow(self._queue, cancel_handler=on_cancel, parent=self.widget)
 
         def remove_runner():
             total = len(delete_paths)
@@ -269,18 +271,18 @@ class SelectionWindow(Widget):
                 try:
                     if self._cancel:
                         return
-                    #os.remove(path)
-                    time.sleep(200)
+                    # os.remove(path)
+                    time.sleep(.2)
                     self.on_progress(i / total * 100, "Removing duplicate images...")
                 except Exception as e:
                     print(f"WARNING: Could not remove {path}: {e}", file=sys.stderr)
             self._progress_running = False
 
         self._progress_running = True
-        with ThreadPoolExecutor() as executor:
+        with ThreadPoolExecutor(max_workers=1) as executor:
             executor.submit(remove_runner)
             self.progress_loop()
-            self._progress_window.modal()
+            self.widget.wait_window(self._progress_window.widget)
 
     def on_cancel(self, event=None):
         self.widget.destroy()
@@ -327,6 +329,7 @@ class SelectionWindow(Widget):
         else:
             self._progress_window.widget.destroy()
             self.widget.destroy()
+            messagebox.showinfo("Success", "Duplicate images were removed.")
 
 
 # class OpenWindow(Widget):
@@ -340,7 +343,7 @@ class SelectionWindow(Widget):
 #         self._directory = initialdir
 #         self.run()
 #         return self._directory
-    
+
 #     def on_click(self):
 #         self._directory = filedialog.askdirectory(initialdir=self._directory)
 #         self.widget.destroy()

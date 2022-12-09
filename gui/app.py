@@ -36,12 +36,12 @@ class App:
                 return pairs
 
             self._progress_running = True
-            with ThreadPoolExecutor() as executor:
+            with ThreadPoolExecutor(max_workers=1) as executor:
                 future = executor.submit(find_runner)
                 self.progress_loop()
                 self._progress_window.run()
                 pairs = future.result()
-            
+
             if finder.cancel:
                 continue
 
