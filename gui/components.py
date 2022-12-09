@@ -1,3 +1,4 @@
+import os
 import pathlib
 import queue
 import sys
@@ -271,8 +272,7 @@ class SelectionWindow(Widget):
                 try:
                     if self._cancel:
                         return
-                    # os.remove(path)
-                    time.sleep(.2)
+                    os.remove(path)
                     self.on_progress(i / total * 100, "Removing duplicate images...")
                 except Exception as e:
                     print(f"WARNING: Could not remove {path}: {e}", file=sys.stderr)
