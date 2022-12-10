@@ -1,7 +1,9 @@
 import re
+from dataclasses import dataclass
+from enum import Enum
 from multiprocessing.pool import ThreadPool
 from pathlib import Path
-from typing import Any, Callable, List
+from typing import Any, Callable, Optional
 
 import imageio.v3 as iio
 import numpy as np
@@ -9,9 +11,38 @@ import numpy as np
 ProgressHandler = Callable[[int, str], Any]
 
 
-class DuplicateFinder:
-    _colors = ("red", "green", "blue")
+class Color(Enum):
+    red = 0
+    green = 1
+    blue = 2
 
+
+Histogram = np.ndarray
+RgbHistogram = dict[Color, Histogram]
+
+
+@dataclass
+class ImageInfo:
+    path: Path
+    histogram: RgbHistogram
+
+    def __sub__(self, other):
+        if not isinstance(other, ImageInfo):
+            return self - other
+        diff: int = 0
+        for color in self.histogram:
+            diff += np.sum(np.absolute(self.histogram[color] - other.histogram[color]))
+        return diff
+
+
+@dataclass
+class Pair:
+    a: ImageInfo
+    b: ImageInfo
+    diff: Optional[int]
+
+
+class DuplicateFinder:
     def __init__(self) -> None:
         self.cancel = False
 
@@ -23,18 +54,20 @@ class DuplicateFinder:
     def cancel(self, value: bool):
         self._cancel = value
 
-    def find(self, path: str, threshold: int = 10_000_000, progress_handler: ProgressHandler = None):
-        self._progress_handler = progress_handler
+    def find(self, path: str, threshold: int = 10_000_000, progress_handler: Optional[ProgressHandler] = None) -> list[list[ImageInfo]]:
+
+        if progress_handler is not None:
+            self._progress_handler = progress_handler
 
         # Get all file paths
-        def get_paths(path: Path) -> List[Path]:
+        def get_paths(path: Path) -> None:
             for entry in path.rglob('*'):
                 if self.cancel:
-                    return []
+                    return
 
                 if entry.is_file():
-                    if re.match('.*\.(jpe?g)$', entry.name, re.I) is not None:
-                        abs_paths.append(entry.absolute())
+                    if re.match(r'.*\.(jpe?g)$', entry.name, re.I) is not None:
+                        abs_paths.append(entry)
                 elif entry.is_dir():
                     get_paths(entry)
 
@@ -52,7 +85,7 @@ class DuplicateFinder:
                 if self.cancel:
                     pool.terminate()
                     return []
-                self._progress_handler(i / total * 100, f"{status} (1/2)")
+                self._progress_handler(int(i / total * 100), f"{status} (1/2)")
                 if histogram is not None:
                     histograms.append(histogram)
 
@@ -60,10 +93,7 @@ class DuplicateFinder:
         pairs = []
         for i, a in enumerate(histograms):
             for b in histograms[i+1:]:
-                pair = {
-                    "a": a,
-                    "b": b,
-                }
+                pair = Pair(a=a, b=b, diff=None)
                 pairs.append(pair)
 
         # Get all diffs
@@ -76,38 +106,31 @@ class DuplicateFinder:
                 if self.cancel:
                     pool.terminate()
                     return []
-                self._progress_handler(i / total * 100, f"{status} (2/2)")
-                if diff["diff"] < threshold:
+                self._progress_handler(int(i / total * 100), f"{status} (2/2)")
+                if diff.diff is not None and diff.diff < threshold:
                     diffs.append(diff)
 
-        return diffs
+        groups = self.get_groups(diffs)
 
-    def get_histogram(self, path):
+        return groups
+
+    def get_histogram(self, path: Path) -> Optional[ImageInfo]:
         try:
-            image = iio.imread(uri=path)
+            image = iio.imread(uri=path.absolute())
         except Exception as e:
             print(f"WARNING: Cannot open {path}: {e}")
             return None
-        color_histogram = {}
-        for channel_id, color in enumerate(self._colors):
-            histogram, bin_edges = np.histogram(image[:, :, channel_id], bins=256, range=(0, 256))
+        color_histogram: RgbHistogram = {}
+        for color in list(Color):
+            histogram, bin_edges = np.histogram(image[:, :, color.value], bins=256, range=(0, 256))
             color_histogram[color] = histogram
-        return {
-            "path": path,
-            "histogram": color_histogram,
-        }
+        return ImageInfo(path=path, histogram=color_histogram)
 
-    def get_diff(self, pair):
-        diff = 0
-        for color in pair["a"]["histogram"]:
-            diff += np.sum(np.absolute(pair["a"]["histogram"][color] - pair["b"]["histogram"][color]))
-        return {
-            "a": pair["a"],
-            "b": pair["b"],
-            "diff": diff,
-        }
+    def get_diff(self, pair: Pair) -> Pair:
+        pair.diff = pair.a - pair.b
+        return pair
 
-    def get_groups(self, pairs):
+    def get_groups(self, pairs: list[Pair]) -> list[list[ImageInfo]]:
 
         def contains(list, filter):
             for x in list:
@@ -116,8 +139,8 @@ class DuplicateFinder:
             return False
 
         def in_group(a, b, group):
-            has_a = contains(group, lambda x: x["path"] == a["path"])
-            has_b = contains(group, lambda x: x["path"] == b["path"])
+            has_a = contains(group, lambda x: x.path == a.path)
+            has_b = contains(group, lambda x: x.path == b.path)
             if has_a:
                 if not has_b:
                     group.append(b)
@@ -140,6 +163,6 @@ class DuplicateFinder:
 
         groups = []
         for pair in pairs:
-            in_groups(pair["a"], pair["b"], groups)
+            in_groups(pair.a, pair.b, groups)
 
         return groups
