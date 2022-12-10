@@ -1,16 +1,17 @@
+from dataclasses import dataclass
 import os
 import pathlib
 import queue
 import sys
-import time
 from concurrent.futures import ThreadPoolExecutor
 from queue import Queue
-from tkinter import BaseWidget, IntVar, messagebox
+from tkinter import IntVar, Toplevel, messagebox
 from tkinter.ttk import Button, Checkbutton, Frame, Label, Progressbar, Style
-from typing import Callable, List
+from typing import Callable, Generic, TypeVar
 
 import pygubu
 
+from finder import ImageInfo
 from gui.graphics import load_image
 
 #from tkinterdnd2 import DND_FILES
@@ -18,19 +19,23 @@ from gui.graphics import load_image
 
 VIEWS_PATH = pathlib.Path(__file__).parent / "views"
 
+T = TypeVar('T')
 
-class Widget:
-    def __init__(self, parent: BaseWidget) -> None:
-        self._widget = None
+class Widget(Generic[T]):
+    def __init__(self, parent, file: str, id: str, widget_type: T) -> None:
         self._parent = parent
-        self._builder = None
+        self._builder = pygubu.Builder()
+        self._builder.add_resource_path(VIEWS_PATH)
+        self._builder.add_from_file(VIEWS_PATH / file)
+        self._widget: T = self._builder.get_object(id, self.parent)
+        self._builder.connect_callbacks(self)
 
     @property
-    def widget(self) -> BaseWidget:
+    def widget(self):
         return self._widget
 
     @widget.setter
-    def widget(self, value: BaseWidget):
+    def widget(self, value):
         self._widget = value
 
     @property
@@ -38,29 +43,26 @@ class Widget:
         return self._parent
 
     @parent.setter
-    def parent(self, value: BaseWidget):
+    def parent(self, value):
         self._parent = value
+
+
+class Window(Widget):
+    def __init__(self, parent, file: str, id: str) -> None:
+        super().__init__(parent, file, id, Toplevel)
 
     def run(self):
         self.widget.lift()
-        self.widget.attributes('-topmost', True)
-        self.widget.after_idle(self.widget.attributes, '-topmost', False)
+        self.widget.attributes('-topmost', True)  # type: ignore
+        self.widget.after_idle(self.widget.attributes, '-topmost', False)  # type: ignore
         self.widget.mainloop()
-
-    def load_view(self, path: str, id: str):
-        self._builder = builder = pygubu.Builder()
-        builder.add_resource_path(VIEWS_PATH)
-        builder.add_from_file(VIEWS_PATH / path)
-        self.widget = builder.get_object(id, self.parent)
-        builder.connect_callbacks(self)
-
+    
 
 class Image(Widget):
-    def __init__(self, path: str, checked=False, parent=None, image_window=None) -> None:
-        super().__init__(parent)
+    def __init__(self, path: str, image_window: 'ImageWindow', parent, checked: bool = False, ) -> None:
+        super().__init__(parent, "image.ui", "imageFrame", Frame)
 
         self._image_window = image_window
-        self.load_view("image.ui", "imageFrame")
 
         self._label: Label = self._builder.get_object('imageLabel')
         self._checkbox: Checkbutton = self._builder.get_object('imageCheckbox')
@@ -75,15 +77,10 @@ class Image(Widget):
 
     @path.setter
     def path(self, value):
-        if value == getattr(self, "_path", None):
-            return
-
         self._path = value
-
         self._image = load_image(self._path, width=128)
-
         self._label.configure(image=self._image)
-        self._label.image = self._image
+        self._label.image = self._image  # type: ignore
 
     @property
     def checked(self):
@@ -95,7 +92,7 @@ class Image(Widget):
         if value:
             self._checked = IntVar(value=1)
         self._checkbox.configure(variable=self._checked)
-        self._checkbox.checked = self._checked
+        self._checkbox.checked = self._checked  # type: ignore
 
     def on_enter(self, event=None):
         self._image_window.title = self.path
@@ -110,13 +107,12 @@ class Image(Widget):
 
 
 class ImageGroup(Widget):
-    def __init__(self, image_paths: List[str], title="", image_window=None, parent=None) -> None:
-        super().__init__(parent)
+    def __init__(self, image_paths: list[str], image_window: 'ImageWindow', title: str = "", parent=None) -> None:
+        super().__init__(parent, "image_group.ui", "imageGroup", Frame)
 
-        self._images: List[Image] = []
+        self._images: list[Image] = []
         self._image_window = image_window
 
-        self.load_view("image_group.ui", "imageGroup")
         self._label: Label = self._builder.get_object('imageGroupLabel')
         self._image_list: Frame = self._builder.get_object('imageGroupList')
 
@@ -154,11 +150,10 @@ class ImageGroup(Widget):
             self._images.append(image)
 
 
-class ImageWindow(Widget):
+class ImageWindow(Window):
     def __init__(self, title="", path=None, parent=None) -> None:
-        super().__init__(parent)
+        super().__init__(parent, "image_window.ui", "imageWindow")
 
-        self.load_view("image_window.ui", "imageWindow")
         self._label_title = self._builder.get_object('labelTitle')
         self._label_image = self._builder.get_object('labelImage')
 
@@ -190,14 +185,18 @@ class ImageWindow(Widget):
         self._label_title.configure(wraplength=self._label_image.winfo_width())
 
 
-class ProgressWindow(Widget):
-    def __init__(self, queue: Queue, cancel_handler: Callable, parent: BaseWidget = None) -> None:
-        super().__init__(parent)
+@dataclass
+class ProgressMessage:
+    status: str
+    value: int
+
+
+class ProgressWindow(Window):
+    def __init__(self, queue: Queue[ProgressMessage], cancel_handler: Callable, parent=None) -> None:
+        super().__init__(parent, "progress_window.ui", "windowMain")
 
         self._queue = queue
         self._cancel_handler = cancel_handler
-
-        self.load_view("progress_window.ui", "windowMain")
 
         # Modal window
         if parent is not None:
@@ -211,26 +210,28 @@ class ProgressWindow(Widget):
     def process(self):
         if self._queue.qsize() == 0:
             return
+        msg = None
         while True:
             try:
                 msg = self._queue.get(False)
             except queue.Empty:
                 break
-        if msg["status"] is not None:
-            self._label_status.configure(text=msg["status"])
-        self._progressbar.configure(value=msg["value"])
+        if msg is None:
+            return
+        if msg.status is not None:
+            self._label_status.configure(text=msg.status)
+        self._progressbar.configure(value=msg.value)
 
     def on_cancel(self, event=None):
         if self._cancel_handler is not None:
             self._cancel_handler()
 
 
-class SelectionWindow(Widget):
-    def __init__(self, groups: List, parent=None):
-        Widget.__init__(self, parent)
+class SelectionWindow(Window):
+    def __init__(self, groups: list[list[ImageInfo]], parent=None):
+        super().__init__(parent, "app.ui", "mainWindow")
         self._cancel = False
 
-        self.load_view("app.ui", "mainWindow")
         self._groups_frame = self._builder.get_object("container")
 
         self._image_window = ImageWindow(parent=self.parent)
@@ -258,7 +259,7 @@ class SelectionWindow(Widget):
                 if image.checked:
                     delete_paths.append(image.path)
 
-        self._queue = Queue()
+        self._queue: Queue[ProgressMessage] = Queue()
         self._cancel = False
 
         def on_cancel():
@@ -314,13 +315,13 @@ class SelectionWindow(Widget):
     def load_images(self):
         self._image_groups = []
         for i, group in enumerate(self._groups):
-            paths = [item["path"] for item in group]
+            paths = [item.path for item in group]
             group = ImageGroup(paths, title=f"Group {i}",
                                parent=self._groups_frame.innerframe, image_window=self._image_window)
             self._image_groups.append(group)
 
     def on_progress(self, value, status):
-        self._queue.put(dict(value=value, status=status))
+        self._queue.put(ProgressMessage(value=value, status=status))
 
     def progress_loop(self):
         self._progress_window.process()

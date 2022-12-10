@@ -1,22 +1,24 @@
+from typing import Optional
 from PIL import ExifTags, Image
 from PIL.ImageTk import PhotoImage
 
 
-def load_image(path: str, width: int = None, height: int = None) -> PhotoImage:
+def load_image(path: str, width: Optional[int] = None, height: Optional[int] = None) -> PhotoImage:
     if width is not None and height is None:
         height = width
     elif width is None and height is not None:
         width = height
 
     image = Image.open(path)
-    if width is not None:
+    if width is not None and height is not None:
         image.thumbnail((width, height), Image.BICUBIC)
 
     # Rotate image according to EXIF data
+    orientation = 0
     for orientation in ExifTags.TAGS.keys():
         if ExifTags.TAGS[orientation] == 'Orientation':
             break
-    exif = image._getexif()
+    exif = image.getexif()
     if exif[orientation] == 3:
         image = image.rotate(180, expand=True)
     elif exif[orientation] == 6:

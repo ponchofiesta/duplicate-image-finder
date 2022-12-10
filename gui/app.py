@@ -4,8 +4,8 @@ from concurrent.futures import ThreadPoolExecutor
 from queue import Queue
 from tkinter import filedialog
 
-from finder import DuplicateFinder
-from gui.components import ProgressWindow, SelectionWindow
+from finder import DuplicateFinder, ImageInfo
+from gui.components import ProgressMessage, ProgressWindow, SelectionWindow
 
 VIEWS_PATH = pathlib.Path(__file__).parent / "views"
 
@@ -22,7 +22,7 @@ class App:
             if directory == '':
                 return
 
-            self._queue = Queue()
+            self._queue: Queue[ProgressMessage] = Queue()
             finder = DuplicateFinder()
 
             def on_cancel():
@@ -31,27 +31,25 @@ class App:
             self._progress_window = ProgressWindow(self._queue, cancel_handler=on_cancel)
 
             def find_runner():
-                pairs = finder.find(directory, progress_handler=self.on_progress)
+                groups = finder.find(directory, progress_handler=self.on_progress)
                 self._progress_running = False
-                return pairs
+                return groups
 
             self._progress_running = True
             with ThreadPoolExecutor(max_workers=1) as executor:
                 future = executor.submit(find_runner)
                 self.progress_loop()
                 self._progress_window.run()
-                pairs = future.result()
+                groups: list[list[ImageInfo]] = future.result()
 
             if finder.cancel:
                 continue
-
-            groups = finder.get_groups(pairs)
 
             selection_window = SelectionWindow(groups)
             selection_window.run()
 
     def on_progress(self, value, status):
-        self._queue.put(dict(value=value, status=status))
+        self._queue.put(ProgressMessage(status=status, value=value))
 
     def progress_loop(self):
         self._progress_window.process()
