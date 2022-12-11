@@ -17,7 +17,7 @@ class App:
     def run(self):
         directory = os.getcwd()
         while True:
-            directory = filedialog.askdirectory(initialdir=directory)
+            directory = filedialog.askdirectory(initialdir=directory, title='Open image folder')
             #directory = OpenWindow().get_directory()
             if directory == '':
                 return
