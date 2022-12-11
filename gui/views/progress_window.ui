@@ -3,6 +3,7 @@
   <object class="tk.Toplevel" id="windowMain" named="True">
     <property name="height">200</property>
     <property name="minsize">320|100</property>
+    <property name="title" translatable="yes">Progress</property>
     <property name="width">320</property>
     <child>
       <object class="ttk.Frame" id="frame1">
