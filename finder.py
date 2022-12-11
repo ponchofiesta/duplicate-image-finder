@@ -34,12 +34,18 @@ class ImageInfo:
             diff += np.sum(np.absolute(self.histogram[color] - other.histogram[color]))
         return diff
 
+    def __hash__(self):
+        return hash(self.path)
+
 
 @dataclass
 class Pair:
     a: ImageInfo
     b: ImageInfo
     diff: Optional[int]
+
+
+ImageInfoGroup = set[ImageInfo]
 
 
 class DuplicateFinder:
@@ -54,7 +60,7 @@ class DuplicateFinder:
     def cancel(self, value: bool):
         self._cancel = value
 
-    def find(self, path: str, threshold: int = 10_000_000, progress_handler: Optional[ProgressHandler] = None) -> list[list[ImageInfo]]:
+    def find(self, path: str, threshold: int = 10_000_000, progress_handler: Optional[ProgressHandler] = None) -> list[ImageInfoGroup]:
 
         if progress_handler is not None:
             self._progress_handler = progress_handler
@@ -130,39 +136,26 @@ class DuplicateFinder:
         pair.diff = pair.a - pair.b
         return pair
 
-    def get_groups(self, pairs: list[Pair]) -> list[list[ImageInfo]]:
-
-        def contains(list, filter):
-            for x in list:
-                if filter(x):
-                    return True
-            return False
-
-        def in_group(a, b, group):
-            has_a = contains(group, lambda x: x.path == a.path)
-            has_b = contains(group, lambda x: x.path == b.path)
-            if has_a:
-                if not has_b:
-                    group.append(b)
-                return True
-            elif has_b:
-                if not has_a:
-                    group.append(b)
-                return True
-            return False
-
-        def in_groups(a, b, groups):
-            found = False
-            for group in groups:
-                if in_group(a, b, group):
-                    found = True
-                    break
-
-            if not found:
-                groups.append([a, b])
-
-        groups = []
+    def get_groups(self, pairs: list[Pair]) -> list[ImageInfoGroup]:
+        groups: list[ImageInfoGroup] = []
         for pair in pairs:
-            in_groups(pair.a, pair.b, groups)
+            pair_in_groups = []
+
+            # Search items in all groups
+            for i, group in enumerate(groups):
+                if pair.a in group or pair.b in group:
+                    pair_in_groups.append(i)
+
+            # If matching items were found in multiple groups, merge those groups
+            if len(pair_in_groups) > 1:
+                for group_id in reversed(pair_in_groups[1:]):
+                    groups[pair_in_groups[0]].update(groups[group_id])
+                    del groups[group_id]
+
+            # Add items to the groups
+            if len(pair_in_groups) > 0:
+                groups[pair_in_groups[0]].update([pair.a, pair.b])
+            else:
+                groups.append(set([pair.a, pair.b]))
 
         return groups

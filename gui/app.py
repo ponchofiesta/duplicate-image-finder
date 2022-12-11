@@ -4,7 +4,7 @@ from concurrent.futures import ThreadPoolExecutor
 from queue import Queue
 from tkinter import filedialog
 
-from finder import DuplicateFinder, ImageInfo
+from finder import DuplicateFinder, ImageInfoGroup, ImageInfo
 from gui.components import ProgressMessage, ProgressWindow, SelectionWindow
 
 VIEWS_PATH = pathlib.Path(__file__).parent / "views"
@@ -40,7 +40,7 @@ class App:
                 future = executor.submit(find_runner)
                 self.progress_loop()
                 self._progress_window.run()
-                groups: list[list[ImageInfo]] = future.result()
+                groups: list[ImageInfoGroup] = future.result()
 
             if finder.cancel:
                 continue

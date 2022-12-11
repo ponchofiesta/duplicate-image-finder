@@ -11,7 +11,7 @@ from typing import Callable, Generic, TypeVar
 
 import pygubu
 
-from finder import ImageInfo
+from finder import ImageInfoGroup, ImageInfo
 from gui.graphics import load_image
 
 #from tkinterdnd2 import DND_FILES
@@ -228,7 +228,7 @@ class ProgressWindow(Window):
 
 
 class SelectionWindow(Window):
-    def __init__(self, groups: list[list[ImageInfo]], parent=None):
+    def __init__(self, groups: list[ImageInfoGroup], parent=None):
         super().__init__(parent, "app.ui", "mainWindow")
         self._cancel = False
 
