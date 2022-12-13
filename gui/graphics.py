@@ -1,9 +1,10 @@
+from pathlib import Path
 from typing import Optional
 from PIL import ExifTags, Image
 from PIL.ImageTk import PhotoImage
 
 
-def load_image(path: str, width: Optional[int] = None, height: Optional[int] = None) -> PhotoImage:
+def load_image(path: Path, width: Optional[int] = None, height: Optional[int] = None) -> PhotoImage:
     if width is not None and height is None:
         height = width
     elif width is None and height is not None:

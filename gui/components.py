@@ -22,6 +22,7 @@ VIEWS_PATH = pathlib.Path(__file__).parent / "views"
 
 T = TypeVar('T')
 
+
 class Widget(Generic[T]):
     def __init__(self, parent, file: str, id: str, widget_type: T) -> None:
         self._parent = parent
@@ -57,10 +58,10 @@ class Window(Widget):
         self.widget.attributes('-topmost', True)  # type: ignore
         self.widget.after_idle(self.widget.attributes, '-topmost', False)  # type: ignore
         self.widget.mainloop()
-    
+
 
 class Image(Widget):
-    def __init__(self, path: str, image_window: 'ImageWindow', parent, checked: bool = False, ) -> None:
+    def __init__(self, image_info: ImageInfo, image_window: 'ImageWindow', parent) -> None:
         super().__init__(parent, "image.ui", "imageFrame", Frame)
 
         self._image_window = image_window
@@ -69,17 +70,17 @@ class Image(Widget):
         self._checkbox: Checkbutton = self._builder.get_object('imageCheckbox')
         Style().map("TCheckbutton", background=[('selected', '#ff6363'), ('', '#63ff63')])
 
-        self.path = path
-        self.checked = checked
+        self.image_info = image_info
+        self.checked = image_info.checked
 
     @property
-    def path(self):
-        return self._path
+    def image_info(self):
+        return self._image_info
 
-    @path.setter
-    def path(self, value):
-        self._path = value
-        self._image = load_image(self._path, width=128)
+    @image_info.setter
+    def image_info(self, value: ImageInfo):
+        self._image_info = value
+        self._image = load_image(self._image_info.path, width=128)
         self._label.configure(image=self._image)
         self._label.image = self._image  # type: ignore
 
@@ -94,10 +95,11 @@ class Image(Widget):
             self._checked = IntVar(value=1)
         self._checkbox.configure(variable=self._checked)
         self._checkbox.checked = self._checked  # type: ignore
+        self._image_info.checked = self.checked
 
     def on_enter(self, event=None):
-        self._image_window.title = self.path
-        self._image_window.path = self.path
+        self._image_window.title = self._image_info.path
+        self._image_window.path = self._image_info.path
         self._image_window.widget.deiconify()
 
     def on_leave(self, event=None):
@@ -108,7 +110,7 @@ class Image(Widget):
 
 
 class ImageGroup(Widget):
-    def __init__(self, image_paths: list[str], image_window: 'ImageWindow', title: str = "", parent=None) -> None:
+    def __init__(self, image_infos: ImageInfoGroup, image_window: 'ImageWindow', title: str = "", parent=None) -> None:
         super().__init__(parent, "image_group.ui", "imageGroup", Frame)
 
         self._images: list[Image] = []
@@ -118,7 +120,7 @@ class ImageGroup(Widget):
         self._image_list: Frame = self._builder.get_object('imageGroupList')
 
         self.title = title
-        self.paths = image_paths
+        self.image_infos = image_infos
 
     @property
     def title(self):
@@ -130,12 +132,12 @@ class ImageGroup(Widget):
         self._label.configure(text=self._title)
 
     @property
-    def paths(self):
-        return self._image_paths
+    def image_infos(self):
+        return self._image_infos
 
-    @paths.setter
-    def paths(self, value):
-        self._image_paths = value
+    @image_infos.setter
+    def image_infos(self, value):
+        self._image_infos = value
         self.load_images()
 
     @property
@@ -144,10 +146,8 @@ class ImageGroup(Widget):
 
     def load_images(self):
         self._images = []
-        for i, path in enumerate(self._image_paths):
-            image = Image(path, checked=True, parent=self._image_list, image_window=self._image_window)
-            if i == 0:
-                image.checked = False
+        for i, image_info in enumerate(self._image_infos):
+            image = Image(image_info, parent=self._image_list, image_window=self._image_window)
             self._images.append(image)
 
 
@@ -230,7 +230,7 @@ class ProgressWindow(Window):
 
 class SelectionWindow(Window):
     def __init__(self, groups: list[ImageInfoGroup], parent=None):
-        super().__init__(parent, "app.ui", "mainWindow")
+        super().__init__(parent, "selection_window.ui", "mainWindow")
         self._cancel = False
 
         self._groups_frame = self._builder.get_object("container")
@@ -249,48 +249,10 @@ class SelectionWindow(Window):
         self._groups = value
         self.load_images()
 
-    @property
-    def image_groups(self):
-        return self._image_groups
-
-    def on_delete(self, event=None):
-        delete_paths = []
-        for group in self.image_groups:
-            for image in group.images:
-                if image.checked:
-                    delete_paths.append(image.path)
-
-        self._queue: Queue[ProgressMessage] = Queue()
-        self._cancel = False
-
-        def on_cancel():
-            self._cancel = True
-
-        self._progress_window = ProgressWindow(self._queue, cancel_handler=on_cancel, parent=self.widget)
-
-        def remove_runner():
-            total = len(delete_paths)
-            for i, path in enumerate(delete_paths):
-                try:
-                    if self._cancel:
-                        return
-                    os.remove(path)
-                    self.on_progress(i / total * 100, "Removing duplicate images...")
-                except Exception as e:
-                    print(f"WARNING: Could not remove {path}: {e}", file=sys.stderr)
-            self._progress_running = False
-
-        self._progress_running = True
-        with ThreadPoolExecutor(max_workers=1) as executor:
-            executor.submit(remove_runner)
-            self.progress_loop()
-            self.widget.wait_window(self._progress_window.widget)
-
-    def on_cancel(self, event=None):
+    def on_ok(self, event=None):
         self.widget.destroy()
 
     def on_mousemove(self, event=None):
-
         space = 32
         bottom = 80
 
@@ -315,23 +277,10 @@ class SelectionWindow(Window):
 
     def load_images(self):
         self._image_groups = []
-        for i, group in enumerate(self._groups):
-            paths = [item.path for item in group]
-            group = ImageGroup(paths, title=f"Group {i}",
+        for i, group in enumerate(self.groups):
+            group = ImageGroup(group, title=f"Group {i}",
                                parent=self._groups_frame.innerframe, image_window=self._image_window)
             self._image_groups.append(group)
-
-    def on_progress(self, value, status):
-        self._queue.put(ProgressMessage(value=value, status=status))
-
-    def progress_loop(self):
-        self._progress_window.process()
-        if self._progress_running:
-            self._progress_window.widget.after(200, self.progress_loop)
-        else:
-            self._progress_window.widget.destroy()
-            self.widget.destroy()
-            messagebox.showinfo("Success", "Duplicate images were removed.")
 
 
 class MainWindow(Window):
@@ -340,9 +289,14 @@ class MainWindow(Window):
         self._frame_open: Frame = self._builder.get_object("frameOpen")
         self._frame_select: Frame = self._builder.get_object("frameSelect")
         self._frame_delete: Frame = self._builder.get_object("frameDelete")
+        self._label_open_status: Label = self._builder.get_object("labelOpenStatus")
+        self._label_path: Label = self._builder.get_object("labelPath")
+        self._label_select_status: Label = self._builder.get_object("labelSelectStatus")
+
         self.step = 0
-        self._directory = os.getcwd()
+        self.directory = ''
         self._queue: Queue[ProgressMessage]
+        self.groups = []
 
     @property
     def step(self):
@@ -352,23 +306,44 @@ class MainWindow(Window):
     def step(self, value: int):
         self._step = value
         if value == 0:
-            self._change_state(self._frame_select, tk.DISABLED)
-            self._change_state(self._frame_delete, tk.DISABLED)
+            self._change_state(self._frame_select, (tk.DISABLED,))
+            self._change_state(self._frame_delete, (tk.DISABLED,))
         elif value == 1:
-            self._change_state(self._frame_select, tk.NORMAL)
-            self._change_state(self._frame_delete, tk.DISABLED)
+            self._change_state(self._frame_select, (f'!{tk.DISABLED}',))
+            self._change_state(self._frame_delete, (tk.DISABLED,))
         elif value == 2:
-            self._change_state(self._frame_select, tk.NORMAL)
-            self._change_state(self._frame_delete, tk.NORMAL)
+            self._change_state(self._frame_select, (f'!{tk.DISABLED}',))
+            self._change_state(self._frame_delete, (f'!{tk.DISABLED}',))
 
-    def _change_state(self, widget, state: str):
+    @property
+    def groups(self):
+        return self._groups
+
+    @groups.setter
+    def groups(self, value: list[ImageInfoGroup]):
+        self._groups = value
+        groups_count = len(value)
+        images_count = sum([len(group) for group in value])
+        dups_count = images_count - groups_count
+        self._label_open_status.configure(text=f"{dups_count} duplicates in {groups_count} groups found")
+
+    @property
+    def directory(self):
+        return self._directory
+
+    @directory.setter
+    def directory(self, value):
+        self._directory = value
+        self._label_path.configure(text=value)
+
+    def _change_state(self, widget, state: tuple[str, ...]):
         for child in widget.winfo_children():
-            child.state((state,))
-        widget.state((state,))
+            child.state(state)
+        widget.state(state)
 
     def on_open(self, event=None):
-        self._directory = filedialog.askdirectory(initialdir=self._directory)
-        if self._directory == '':
+        self.directory = filedialog.askdirectory(initialdir=self.directory)
+        if self.directory == '':
             return
 
         self._queue = Queue()
@@ -376,8 +351,8 @@ class MainWindow(Window):
 
         def on_cancel():
             finder.cancel = True
-            
-        self._progress_window = ProgressWindow(self._queue, cancel_handler=on_cancel)
+
+        self._progress_window = ProgressWindow(self._queue, cancel_handler=on_cancel, parent=self.widget)
 
         def on_progress(value, status):
             self._queue.put(ProgressMessage(status=status, value=value))
@@ -385,12 +360,12 @@ class MainWindow(Window):
         def progress_loop():
             self._progress_window.process()
             if self._progress_running:
-                self._progress_window.widget.after(200, self.progress_loop)
+                self._progress_window.widget.after(200, progress_loop)
             else:
                 self._progress_window.widget.destroy()
 
         def find_runner():
-            groups = finder.find(self._directory, progress_handler=on_progress)
+            groups = finder.find(self.directory, progress_handler=on_progress)
             self._progress_running = False
             return groups
 
@@ -398,37 +373,66 @@ class MainWindow(Window):
         with ThreadPoolExecutor(max_workers=1) as executor:
             future = executor.submit(find_runner)
             progress_loop()
-            self._progress_window.run()
-            self._groups: list[ImageInfoGroup] = future.result()
+            self.widget.wait_window(self._progress_window.widget)
+            self.groups = future.result()
 
         if finder.cancel:
             return
 
         self.step = 1
-        # selection_window = SelectionWindow(groups)
-        # selection_window.run()
 
     def on_select(self, event=None):
-        pass
+        selection_window = SelectionWindow(self.groups)
+        self.widget.wait_window(selection_window.widget)
+
+        delete_paths = []
+        for group in self.groups:
+            for image in group:
+                if image.checked:
+                    delete_paths.append(image.path)
+
+        self._label_select_status.configure(text=f"{len(delete_paths)} images to be removed")
+
+        if len(delete_paths) > 0:
+            self.step = 2
 
     def on_delete(self, event=None):
-        pass
+        if not messagebox.askokcancel("Delete duplicates", "Are you sure to delete selected images?"):
+            return
+        # self._queue: Queue[ProgressMessage] = Queue()
+        # self._cancel = False
 
-# class OpenWindow(Widget):
-#     def __init__(self, parent: BaseWidget = None) -> None:
-#         super().__init__(parent)
-#         self.load_view("open_window.ui", "openWindow")
-#         self.widget.drop_target_register(DND_FILES)
-#         self.widget.dnd_bind("<<Drop>>", self.on_drop)
+        # def on_cancel():
+        #     self._cancel = True
 
-#     def get_directory(self, initialdir=os.getcwd()):
-#         self._directory = initialdir
-#         self.run()
-#         return self._directory
+        # self._progress_window = ProgressWindow(self._queue, cancel_handler=on_cancel, parent=self.widget)
 
-#     def on_click(self):
-#         self._directory = filedialog.askdirectory(initialdir=self._directory)
-#         self.widget.destroy()
+        # def remove_runner():
+        #     total = len(delete_paths)
+        #     for i, path in enumerate(delete_paths):
+        #         try:
+        #             if self._cancel:
+        #                 return
+        #             os.remove(path)
+        #             self.on_progress(i / total * 100, "Removing duplicate images...")
+        #         except Exception as e:
+        #             print(f"WARNING: Could not remove {path}: {e}", file=sys.stderr)
+        #     self._progress_running = False
 
-#     def on_drop(self, event):
-#         print(event)
+        # self._progress_running = True
+        # with ThreadPoolExecutor(max_workers=1) as executor:
+        #     executor.submit(remove_runner)
+        #     self.progress_loop()
+        #     self.widget.wait_window(self._progress_window.widget)
+
+    # def on_progress(self, value, status):
+    #     self._queue.put(ProgressMessage(value=value, status=status))
+
+    # def progress_loop(self):
+    #     self._progress_window.process()
+    #     if self._progress_running:
+    #         self._progress_window.widget.after(200, self.progress_loop)
+    #     else:
+    #         self._progress_window.widget.destroy()
+    #         self.widget.destroy()
+    #         messagebox.showinfo("Success", "Duplicate images were removed.")

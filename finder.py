@@ -1,9 +1,9 @@
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from multiprocessing.pool import ThreadPool
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Literal, Optional
 
 import imageio.v3 as iio
 import numpy as np
@@ -25,6 +25,7 @@ RgbHistogram = dict[Color, Histogram]
 class ImageInfo:
     path: Path
     histogram: RgbHistogram
+    checked: bool = field(init=False, default=True)
 
     def __sub__(self, other):
         if not isinstance(other, ImageInfo):
@@ -45,7 +46,7 @@ class Pair:
     diff: Optional[int]
 
 
-ImageInfoGroup = set[ImageInfo]
+ImageInfoGroup = dict[ImageInfo, Literal[None]]
 
 
 class DuplicateFinder:
@@ -154,8 +155,9 @@ class DuplicateFinder:
 
             # Add items to the groups
             if len(pair_in_groups) > 0:
-                groups[pair_in_groups[0]].update([pair.a, pair.b])
+                groups[pair_in_groups[0]].update([(pair.a, None), (pair.b, None)])
             else:
-                groups.append(set([pair.a, pair.b]))
+                pair.a.checked = False
+                groups.append(dict.fromkeys([pair.a, pair.b]))
 
         return groups

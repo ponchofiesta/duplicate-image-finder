@@ -38,6 +38,7 @@
                     <property name="command" type="command" cbtype="simple">on_open</property>
                     <property name="text" translatable="yes">Open folder...</property>
                     <layout manager="pack">
+                      <property name="ipadx">8</property>
                       <property name="padx">0 8</property>
                       <property name="side">left</property>
                     </layout>
@@ -89,6 +90,7 @@
                 <property name="text" translatable="yes">Select images to remove...</property>
                 <layout manager="pack">
                   <property name="anchor">nw</property>
+                  <property name="ipadx">8</property>
                   <property name="pady">0 8</property>
                   <property name="side">top</property>
                 </layout>
@@ -120,6 +122,7 @@
                 <property name="command" type="command" cbtype="simple">on_delete</property>
                 <property name="text" translatable="yes">Delete selected images...</property>
                 <layout manager="pack">
+                  <property name="ipadx">8</property>
                   <property name="side">left</property>
                 </layout>
               </object>

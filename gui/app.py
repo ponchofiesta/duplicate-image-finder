@@ -51,12 +51,12 @@ class App:
         #     selection_window = SelectionWindow(groups)
         #     selection_window.run()
 
-    def on_progress(self, value, status):
-        self._queue.put(ProgressMessage(status=status, value=value))
+    # def on_progress(self, value, status):
+    #     self._queue.put(ProgressMessage(status=status, value=value))
 
-    def progress_loop(self):
-        self._progress_window.process()
-        if self._progress_running:
-            self._progress_window.widget.after(200, self.progress_loop)
-        else:
-            self._progress_window.widget.destroy()
+    # def progress_loop(self):
+    #     self._progress_window.process()
+    #     if self._progress_running:
+    #         self._progress_window.widget.after(200, self.progress_loop)
+    #     else:
+    #         self._progress_window.widget.destroy()

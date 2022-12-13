@@ -28,19 +28,9 @@
           <property name="side">right</property>
         </layout>
         <child>
-          <object class="ttk.Button" id="deleteButton" named="True">
-            <property name="command" type="command" cbtype="simple">on_delete</property>
-            <property name="text" translatable="yes">Delete</property>
-            <layout manager="pack">
-              <property name="padx">8</property>
-              <property name="side">left</property>
-            </layout>
-          </object>
-        </child>
-        <child>
-          <object class="ttk.Button" id="cancelButton" named="True">
-            <property name="command" type="command" cbtype="simple">on_cancel</property>
-            <property name="text" translatable="yes">Cancel</property>
+          <object class="ttk.Button" id="okButton" named="True">
+            <property name="command" type="command" cbtype="simple">on_ok</property>
+            <property name="text" translatable="yes">OK</property>
             <layout manager="pack">
               <property name="side">left</property>
             </layout>
