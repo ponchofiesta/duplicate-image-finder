@@ -5,7 +5,7 @@ from queue import Queue
 from tkinter import filedialog
 
 from finder import DuplicateFinder, ImageInfoGroup, ImageInfo
-from gui.components import ProgressMessage, ProgressWindow, SelectionWindow
+from gui.components import MainWindow, ProgressMessage, ProgressWindow, SelectionWindow
 
 VIEWS_PATH = pathlib.Path(__file__).parent / "views"
 
@@ -15,38 +15,41 @@ class App:
         self._progress_running = False
 
     def run(self):
-        directory = os.getcwd()
-        while True:
-            directory = filedialog.askdirectory(initialdir=directory, title='Open image folder')
-            #directory = OpenWindow().get_directory()
-            if directory == '':
-                return
+        main_window = MainWindow()
+        main_window.run()
 
-            self._queue: Queue[ProgressMessage] = Queue()
-            finder = DuplicateFinder()
+        # directory = os.getcwd()
+        # while True:
+        #     directory = filedialog.askdirectory(initialdir=directory)
+        #     #directory = OpenWindow().get_directory()
+        #     if directory == '':
+        #         return
 
-            def on_cancel():
-                finder.cancel = True
+        #     self._queue: Queue[ProgressMessage] = Queue()
+        #     finder = DuplicateFinder()
 
-            self._progress_window = ProgressWindow(self._queue, cancel_handler=on_cancel)
+        #     def on_cancel():
+        #         finder.cancel = True
 
-            def find_runner():
-                groups = finder.find(directory, progress_handler=self.on_progress)
-                self._progress_running = False
-                return groups
+        #     self._progress_window = ProgressWindow(self._queue, cancel_handler=on_cancel)
 
-            self._progress_running = True
-            with ThreadPoolExecutor(max_workers=1) as executor:
-                future = executor.submit(find_runner)
-                self.progress_loop()
-                self._progress_window.run()
-                groups: list[ImageInfoGroup] = future.result()
+        #     def find_runner():
+        #         groups = finder.find(directory, progress_handler=self.on_progress)
+        #         self._progress_running = False
+        #         return groups
 
-            if finder.cancel:
-                continue
+        #     self._progress_running = True
+        #     with ThreadPoolExecutor(max_workers=1) as executor:
+        #         future = executor.submit(find_runner)
+        #         self.progress_loop()
+        #         self._progress_window.run()
+        #         groups: list[ImageInfoGroup] = future.result()
 
-            selection_window = SelectionWindow(groups)
-            selection_window.run()
+        #     if finder.cancel:
+        #         continue
+
+        #     selection_window = SelectionWindow(groups)
+        #     selection_window.run()
 
     def on_progress(self, value, status):
         self._queue.put(ProgressMessage(status=status, value=value))

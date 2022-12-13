@@ -5,13 +5,14 @@ import queue
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from queue import Queue
-from tkinter import IntVar, Toplevel, messagebox
+from tkinter import IntVar, Toplevel, filedialog, messagebox
+import tkinter as tk
 from tkinter.ttk import Button, Checkbutton, Frame, Label, Progressbar, Style
 from typing import Callable, Generic, TypeVar
 
 import pygubu
 
-from finder import ImageInfoGroup, ImageInfo
+from finder import DuplicateFinder, ImageInfoGroup, ImageInfo
 from gui.graphics import load_image
 
 #from tkinterdnd2 import DND_FILES
@@ -332,6 +333,86 @@ class SelectionWindow(Window):
             self.widget.destroy()
             messagebox.showinfo("Success", "Duplicate images were removed.")
 
+
+class MainWindow(Window):
+    def __init__(self, parent=None) -> None:
+        super().__init__(parent, "main_window.ui", "main_window")
+        self._frame_open: Frame = self._builder.get_object("frameOpen")
+        self._frame_select: Frame = self._builder.get_object("frameSelect")
+        self._frame_delete: Frame = self._builder.get_object("frameDelete")
+        self.step = 0
+        self._directory = os.getcwd()
+        self._queue: Queue[ProgressMessage]
+
+    @property
+    def step(self):
+        return self._step
+
+    @step.setter
+    def step(self, value: int):
+        self._step = value
+        if value == 0:
+            self._change_state(self._frame_select, tk.DISABLED)
+            self._change_state(self._frame_delete, tk.DISABLED)
+        elif value == 1:
+            self._change_state(self._frame_select, tk.NORMAL)
+            self._change_state(self._frame_delete, tk.DISABLED)
+        elif value == 2:
+            self._change_state(self._frame_select, tk.NORMAL)
+            self._change_state(self._frame_delete, tk.NORMAL)
+
+    def _change_state(self, widget, state: str):
+        for child in widget.winfo_children():
+            child.state((state,))
+        widget.state((state,))
+
+    def on_open(self, event=None):
+        self._directory = filedialog.askdirectory(initialdir=self._directory)
+        if self._directory == '':
+            return
+
+        self._queue = Queue()
+        finder = DuplicateFinder()
+
+        def on_cancel():
+            finder.cancel = True
+            
+        self._progress_window = ProgressWindow(self._queue, cancel_handler=on_cancel)
+
+        def on_progress(value, status):
+            self._queue.put(ProgressMessage(status=status, value=value))
+
+        def progress_loop():
+            self._progress_window.process()
+            if self._progress_running:
+                self._progress_window.widget.after(200, self.progress_loop)
+            else:
+                self._progress_window.widget.destroy()
+
+        def find_runner():
+            groups = finder.find(self._directory, progress_handler=on_progress)
+            self._progress_running = False
+            return groups
+
+        self._progress_running = True
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(find_runner)
+            progress_loop()
+            self._progress_window.run()
+            self._groups: list[ImageInfoGroup] = future.result()
+
+        if finder.cancel:
+            return
+
+        self.step = 1
+        # selection_window = SelectionWindow(groups)
+        # selection_window.run()
+
+    def on_select(self, event=None):
+        pass
+
+    def on_delete(self, event=None):
+        pass
 
 # class OpenWindow(Widget):
 #     def __init__(self, parent: BaseWidget = None) -> None:
