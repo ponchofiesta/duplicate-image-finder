@@ -333,6 +333,19 @@ class SelectionWindow(Window):
             messagebox.showinfo("Success", "Duplicate images were removed.")
 
 
+class MainWindow(Window):
+    def __init__(self, parent=None) -> None:
+        super().__init__(parent, "main_window.ui", "main_window")
+
+    def on_open(self, event=None):
+        pass
+
+    def on_select(self, event=None):
+        pass
+
+    def on_delete(self, event=None):
+        pass
+
 # class OpenWindow(Widget):
 #     def __init__(self, parent: BaseWidget = None) -> None:
 #         super().__init__(parent)

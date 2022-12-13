@@ -5,7 +5,7 @@ from queue import Queue
 from tkinter import filedialog
 
 from finder import DuplicateFinder, ImageInfoGroup, ImageInfo
-from gui.components import ProgressMessage, ProgressWindow, SelectionWindow
+from gui.components import MainWindow, ProgressMessage, ProgressWindow, SelectionWindow
 
 VIEWS_PATH = pathlib.Path(__file__).parent / "views"
 
@@ -15,6 +15,9 @@ class App:
         self._progress_running = False
 
     def run(self):
+        # main_window = MainWindow()
+        # main_window.run()
+
         directory = os.getcwd()
         while True:
             directory = filedialog.askdirectory(initialdir=directory)

@@ -1,0 +1,131 @@
+<?xml version='1.0' encoding='utf-8'?>
+<interface version="1.3">
+  <object class="tk.Toplevel" id="main_window" named="True">
+    <property name="height">200</property>
+    <property name="minsize">480|200</property>
+    <property name="width">200</property>
+    <child>
+      <object class="ttk.Frame" id="frame2">
+        <property name="height">200</property>
+        <property name="padding">8</property>
+        <property name="width">200</property>
+        <layout manager="pack">
+          <property name="fill">both</property>
+          <property name="side">top</property>
+        </layout>
+        <child>
+          <object class="ttk.Labelframe" id="frameOpen" named="True">
+            <property name="height">200</property>
+            <property name="padding">8</property>
+            <property name="text" translatable="yes">Open</property>
+            <property name="width">200</property>
+            <layout manager="pack">
+              <property name="fill">x</property>
+              <property name="side">top</property>
+            </layout>
+            <child>
+              <object class="ttk.Frame" id="frameOpenFolder" named="True">
+                <property name="height">200</property>
+                <property name="width">200</property>
+                <layout manager="pack">
+                  <property name="fill">x</property>
+                  <property name="pady">0 8</property>
+                  <property name="side">top</property>
+                </layout>
+                <child>
+                  <object class="ttk.Button" id="buttonOpen" named="True">
+                    <property name="command" type="command" cbtype="simple">on_open</property>
+                    <property name="text" translatable="yes">Open folder...</property>
+                    <layout manager="pack">
+                      <property name="padx">0 8</property>
+                      <property name="side">left</property>
+                    </layout>
+                  </object>
+                </child>
+                <child>
+                  <object class="ttk.Label" id="labelPath" named="True">
+                    <property name="text" translatable="yes">Path</property>
+                    <layout manager="pack">
+                      <property name="side">left</property>
+                    </layout>
+                  </object>
+                </child>
+              </object>
+            </child>
+            <child>
+              <object class="ttk.Frame" id="frame4">
+                <property name="height">200</property>
+                <property name="width">200</property>
+                <layout manager="pack">
+                  <property name="fill">x</property>
+                  <property name="side">top</property>
+                </layout>
+                <child>
+                  <object class="ttk.Label" id="labelOpenStatus" named="True">
+                    <property name="text" translatable="yes">Status</property>
+                    <layout manager="pack">
+                      <property name="side">left</property>
+                    </layout>
+                  </object>
+                </child>
+              </object>
+            </child>
+          </object>
+        </child>
+        <child>
+          <object class="ttk.Labelframe" id="frameSelect" named="True">
+            <property name="height">200</property>
+            <property name="padding">8</property>
+            <property name="text" translatable="yes">Select</property>
+            <property name="width">200</property>
+            <layout manager="pack">
+              <property name="fill">x</property>
+              <property name="side">top</property>
+            </layout>
+            <child>
+              <object class="ttk.Button" id="buttonSelect" named="True">
+                <property name="command" type="command" cbtype="simple">on_select</property>
+                <property name="text" translatable="yes">Select images to remove...</property>
+                <layout manager="pack">
+                  <property name="anchor">nw</property>
+                  <property name="pady">0 8</property>
+                  <property name="side">top</property>
+                </layout>
+              </object>
+            </child>
+            <child>
+              <object class="ttk.Label" id="labelSelectStatus" named="True">
+                <property name="text" translatable="yes">Status</property>
+                <layout manager="pack">
+                  <property name="anchor">nw</property>
+                  <property name="side">top</property>
+                </layout>
+              </object>
+            </child>
+          </object>
+        </child>
+        <child>
+          <object class="ttk.Labelframe" id="labelframe5">
+            <property name="height">200</property>
+            <property name="padding">8</property>
+            <property name="text" translatable="yes">Delete</property>
+            <property name="width">200</property>
+            <layout manager="pack">
+              <property name="fill">x</property>
+              <property name="side">top</property>
+            </layout>
+            <child>
+              <object class="ttk.Button" id="buttonDelete" named="True">
+                <property name="command" type="command" cbtype="simple">on_delete</property>
+                <property name="text" translatable="yes">Delete selected images...</property>
+                <layout manager="pack">
+                  <property name="side">left</property>
+                </layout>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+  </object>
+</interface>
