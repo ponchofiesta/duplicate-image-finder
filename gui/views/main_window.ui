@@ -3,6 +3,7 @@
   <object class="tk.Toplevel" id="main_window" named="True">
     <property name="height">200</property>
     <property name="minsize">480|200</property>
+    <property name="title" translatable="yes">Duplicate Image Finder</property>
     <property name="width">200</property>
     <child>
       <object class="ttk.Frame" id="frame2">
@@ -105,7 +106,7 @@
           </object>
         </child>
         <child>
-          <object class="ttk.Labelframe" id="labelframe5">
+          <object class="ttk.Labelframe" id="frameDelete" named="True">
             <property name="height">200</property>
             <property name="padding">8</property>
             <property name="text" translatable="yes">Delete</property>
