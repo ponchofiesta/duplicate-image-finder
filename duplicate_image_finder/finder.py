@@ -24,13 +24,16 @@ RgbHistogram = dict[Color, Histogram]
 @dataclass
 class ImageInfo:
     path: Path
-    histogram: RgbHistogram
+    error: Optional[Exception] = field(default=None)
+    histogram: Optional[RgbHistogram] = field(default=None)
     checked: bool = field(init=False, default=True)
 
     def __sub__(self, other):
         if not isinstance(other, ImageInfo):
             return self - other
         diff: int = 0
+        if self.histogram is None or other.histogram is None:
+            raise TypeError("histogram must be not None")
         for color in self.histogram:
             diff += np.sum(np.absolute(self.histogram[color] - other.histogram[color]))
         return diff
@@ -63,7 +66,7 @@ class DuplicateFinder:
     def cancel(self, value: bool):
         self._cancel = value
 
-    def find(self, path: str, threshold: int = 10_000_000, progress_handler: Optional[ProgressHandler] = None) -> list[ImageInfoGroup]:
+    def find(self, path: str, threshold: int = 10_000_000, progress_handler: Optional[ProgressHandler] = None) -> tuple[list[ImageInfoGroup], list[Path]]:
         """Find duplicate images"""
         if progress_handler is not None:
             self._progress_handler = progress_handler
@@ -90,12 +93,15 @@ class DuplicateFinder:
         with ThreadPool() as pool:
             total = len(abs_paths)
             histograms = []
+            failed = []
             for i, histogram in enumerate(pool.imap_unordered(self.get_histogram, abs_paths)):
                 if self.cancel:
                     pool.terminate()
-                    return []
+                    return ([], [])
                 self._progress_handler(int(i / total * 100), f"{status} (1/2)")
-                if histogram is not None:
+                if histogram.error is not None:
+                    failed.append(histogram)
+                elif histogram.histogram is not None:
                     histograms.append(histogram)
 
         # Prepare diffs
@@ -114,22 +120,21 @@ class DuplicateFinder:
             for i, diff in enumerate(pool.imap_unordered(self.get_diff, pairs)):
                 if self.cancel:
                     pool.terminate()
-                    return []
+                    return ([], [])
                 self._progress_handler(int(i / total * 100), f"{status} (2/2)")
                 if diff.diff is not None and diff.diff < threshold:
                     diffs.append(diff)
 
         groups = self.get_groups(diffs)
 
-        return groups
+        return (groups, failed)
 
-    def get_histogram(self, path: Path) -> Optional[ImageInfo]:
+    def get_histogram(self, path: Path) -> ImageInfo:
         """Get color histgram of each channel of an image"""
         try:
             image = iio.imread(uri=path.absolute())
         except Exception as e:
-            print(f"WARNING: Cannot open {path}: {e}")
-            return None
+            return ImageInfo(path=path, error=e)
         color_histogram: RgbHistogram = {}
         for color in list(Color):
             histogram, bin_edges = np.histogram(image[:, :, color.value], bins=256, range=(0, 256))

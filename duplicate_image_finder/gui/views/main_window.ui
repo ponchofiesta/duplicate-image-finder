@@ -122,8 +122,19 @@
                 <property name="command" type="command" cbtype="simple">on_delete</property>
                 <property name="text" translatable="yes">Delete selected images...</property>
                 <layout manager="pack">
+                  <property name="anchor">nw</property>
                   <property name="ipadx">8</property>
-                  <property name="side">left</property>
+                  <property name="side">top</property>
+                </layout>
+              </object>
+            </child>
+            <child>
+              <object class="ttk.Label" id="labelDeleteStatus" named="True">
+                <property name="text" translatable="yes">Status</property>
+                <layout manager="pack">
+                  <property name="anchor">nw</property>
+                  <property name="pady">8 0</property>
+                  <property name="side">top</property>
                 </layout>
               </object>
             </child>
