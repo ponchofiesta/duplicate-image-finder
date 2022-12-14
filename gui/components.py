@@ -21,6 +21,8 @@ T = TypeVar('T')
 
 
 class Widget(Generic[T]):
+    """Base GUI class for app Tk widgets"""
+
     def __init__(self, parent, file: str, id: str, widget_type: T) -> None:
         self._parent = parent
         self._builder = pygubu.Builder()
@@ -31,6 +33,7 @@ class Widget(Generic[T]):
 
     @property
     def widget(self):
+        """Tk widget behind this class"""
         return self._widget
 
     @widget.setter
@@ -39,6 +42,7 @@ class Widget(Generic[T]):
 
     @property
     def parent(self):
+        """Parent Tk widget of this widget"""
         return self._parent
 
     @parent.setter
@@ -47,6 +51,8 @@ class Widget(Generic[T]):
 
 
 class Window(Widget):
+    """Base Window class for app"""
+
     def __init__(self, parent, file: str, id: str) -> None:
         super().__init__(parent, file, id, Toplevel)
 
@@ -58,6 +64,7 @@ class Window(Widget):
 
 
 class Image(Widget):
+    """An image that can be checked"""
     def __init__(self, image_info: ImageInfo, image_window: 'ImageWindow', parent) -> None:
         super().__init__(parent, "image.ui", "imageFrame", Frame)
 
@@ -110,6 +117,7 @@ class Image(Widget):
 
 
 class ImageGroup(Widget):
+    """A group of images"""
     def __init__(self, image_infos: ImageInfoGroup, image_window: 'ImageWindow', title: str = "", parent=None) -> None:
         super().__init__(parent, "image_group.ui", "imageGroup", Frame)
 
@@ -152,6 +160,7 @@ class ImageGroup(Widget):
 
 
 class ImageWindow(Window):
+    """An image preview popup window"""
     def __init__(self, title="", path=None, parent=None) -> None:
         super().__init__(parent, "image_window.ui", "imageWindow")
 
@@ -193,6 +202,7 @@ class ProgressMessage:
 
 
 class ProgressWindow(Window):
+    """Window to shop a process progress"""
     def __init__(self, queue: Queue[ProgressMessage], cancel_handler: Callable, parent=None) -> None:
         super().__init__(parent, "progress_window.ui", "windowMain")
 
@@ -229,6 +239,7 @@ class ProgressWindow(Window):
 
 
 class SelectionWindow(Window):
+    """Image selection window"""
     def __init__(self, groups: list[ImageInfoGroup], parent=None):
         super().__init__(parent, "selection_window.ui", "mainWindow")
         self._cancel = False
@@ -284,6 +295,7 @@ class SelectionWindow(Window):
 
 
 class MainWindow(Window):
+    """Main program window"""
     def __init__(self, parent=None) -> None:
         super().__init__(parent, "main_window.ui", "main_window")
         self._frame_open: Frame = self._builder.get_object("frameOpen")

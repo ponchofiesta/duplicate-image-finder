@@ -50,11 +50,13 @@ ImageInfoGroup = dict[ImageInfo, Literal[None]]
 
 
 class DuplicateFinder:
+    """Get image infos and compare them to find similar images"""
     def __init__(self) -> None:
         self.cancel = False
 
     @property
     def cancel(self) -> bool:
+        """Cancel processing"""
         return self._cancel
 
     @cancel.setter
@@ -62,7 +64,7 @@ class DuplicateFinder:
         self._cancel = value
 
     def find(self, path: str, threshold: int = 10_000_000, progress_handler: Optional[ProgressHandler] = None) -> list[ImageInfoGroup]:
-
+        """Find duplicate images"""
         if progress_handler is not None:
             self._progress_handler = progress_handler
 
@@ -122,6 +124,7 @@ class DuplicateFinder:
         return groups
 
     def get_histogram(self, path: Path) -> Optional[ImageInfo]:
+        """Get color histgram of each channel of an image"""
         try:
             image = iio.imread(uri=path.absolute())
         except Exception as e:
@@ -134,10 +137,12 @@ class DuplicateFinder:
         return ImageInfo(path=path, histogram=color_histogram)
 
     def get_diff(self, pair: Pair) -> Pair:
+        """Calculate difference between two images"""
         pair.diff = pair.a - pair.b
         return pair
 
     def get_groups(self, pairs: list[Pair]) -> list[ImageInfoGroup]:
+        """Create groups of similar images"""
         groups: list[ImageInfoGroup] = []
         for pair in pairs:
             pair_in_groups = []
