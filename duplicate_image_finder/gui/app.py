@@ -1,4 +1,4 @@
-from gui.components import MainWindow
+from .components import MainWindow
 
 
 class App:

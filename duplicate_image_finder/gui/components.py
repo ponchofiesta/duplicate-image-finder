@@ -12,8 +12,8 @@ from typing import Callable, Generic, TypeVar
 
 import pygubu
 
-from finder import DuplicateFinder, ImageInfo, ImageInfoGroup
-from gui.graphics import load_image
+from ..finder import DuplicateFinder, ImageInfo, ImageInfoGroup
+from .graphics import load_image
 
 VIEWS_PATH = pathlib.Path(__file__).parent / "views"
 

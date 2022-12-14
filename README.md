@@ -15,5 +15,5 @@ pip install -r requirements.txt
 Run App by:
 
 ```bash
-python __init__.py
+python -m duplicate_image_finder
 ```
