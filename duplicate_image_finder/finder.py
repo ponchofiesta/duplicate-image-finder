@@ -127,6 +127,11 @@ class DuplicateFinder:
 
         groups = self.get_groups(diffs)
 
+        # Set checked on first image of each group
+        for group in groups:
+            item = next(iter(group.keys()))
+            item.checked = False
+
         return (groups, failed)
 
     def get_histogram(self, path: Path) -> ImageInfo:
@@ -167,7 +172,6 @@ class DuplicateFinder:
             if len(pair_in_groups) > 0:
                 groups[pair_in_groups[0]].update([(pair.a, None), (pair.b, None)])
             else:
-                pair.a.checked = False
                 groups.append(dict.fromkeys([pair.a, pair.b]))
 
         return groups
