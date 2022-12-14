@@ -333,13 +333,13 @@ class MainWindow(Window):
     @step.setter
     def step(self, value: Step):
         self._step = value
-        if value == 0:
+        if value == Step.Open:
             self._change_state(self._frame_select, (tk.DISABLED,))
             self._change_state(self._frame_delete, (tk.DISABLED,))
-        elif value == 1:
+        elif value == Step.Select:
             self._change_state(self._frame_select, (f'!{tk.DISABLED}',))
             self._change_state(self._frame_delete, (tk.DISABLED,))
-        elif value == 2:
+        elif value == Step.Delete:
             self._change_state(self._frame_select, (f'!{tk.DISABLED}',))
             self._change_state(self._frame_delete, (f'!{tk.DISABLED}',))
 
