@@ -15,5 +15,5 @@ pip install -r requirements.txt
 Run App by:
 
 ```bash
-python main.py
+python __init__-py
 ```
