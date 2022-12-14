@@ -249,6 +249,11 @@ class SelectionWindow(Window):
 
         self._image_window = ImageWindow(parent=self.parent)
 
+        # Modal window
+        if parent is not None:
+            self.widget.transient(parent)
+            self.widget.grab_set()
+
         self.groups = groups
         self.parent = parent
 
@@ -421,7 +426,7 @@ class MainWindow(Window):
         self.step = Step.Select
 
     def on_select(self, event=None):
-        selection_window = SelectionWindow(self.groups)
+        selection_window = SelectionWindow(self.groups, parent=self.widget)
         self.widget.wait_window(selection_window.widget)
         self.groups = selection_window.groups
 
