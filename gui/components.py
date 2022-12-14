@@ -1,22 +1,19 @@
-from dataclasses import dataclass
 import os
 import pathlib
 import queue
 import sys
+import tkinter as tk
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
 from queue import Queue
 from tkinter import IntVar, Toplevel, filedialog, messagebox
-import tkinter as tk
 from tkinter.ttk import Button, Checkbutton, Frame, Label, Progressbar, Style
 from typing import Callable, Generic, TypeVar
 
 import pygubu
 
-from finder import DuplicateFinder, ImageInfoGroup, ImageInfo
+from finder import DuplicateFinder, ImageInfo, ImageInfoGroup
 from gui.graphics import load_image
-
-#from tkinterdnd2 import DND_FILES
-
 
 VIEWS_PATH = pathlib.Path(__file__).parent / "views"
 
@@ -107,6 +104,9 @@ class Image(Widget):
 
     def on_click(self, event=None):
         self.checked = not self.checked
+
+    def on_check(self, event=None):
+        self.checked = self.checked
 
 
 class ImageGroup(Widget):
@@ -384,6 +384,22 @@ class MainWindow(Window):
     def on_select(self, event=None):
         selection_window = SelectionWindow(self.groups)
         self.widget.wait_window(selection_window.widget)
+        self.groups = selection_window.groups
+
+        dups_count = 0
+        for group in self.groups:
+            for image in group:
+                if image.checked:
+                    dups_count += 1
+
+        self._label_select_status.configure(text=f"{dups_count} images to be removed")
+
+        if dups_count > 0:
+            self.step = 2
+
+    def on_delete(self, event=None):
+        if not messagebox.askokcancel("Delete duplicates", "Are you sure to delete selected images?"):
+            return
 
         delete_paths = []
         for group in self.groups:
@@ -391,48 +407,39 @@ class MainWindow(Window):
                 if image.checked:
                     delete_paths.append(image.path)
 
-        self._label_select_status.configure(text=f"{len(delete_paths)} images to be removed")
+        self._queue: Queue[ProgressMessage] = Queue()
+        self._cancel = False
 
-        if len(delete_paths) > 0:
-            self.step = 2
+        def on_cancel():
+            self._cancel = True
 
-    def on_delete(self, event=None):
-        if not messagebox.askokcancel("Delete duplicates", "Are you sure to delete selected images?"):
-            return
-        # self._queue: Queue[ProgressMessage] = Queue()
-        # self._cancel = False
+        self._progress_window = ProgressWindow(self._queue, cancel_handler=on_cancel, parent=self.widget)
 
-        # def on_cancel():
-        #     self._cancel = True
+        def on_progress(value, status):
+            self._queue.put(ProgressMessage(value=value, status=status))
 
-        # self._progress_window = ProgressWindow(self._queue, cancel_handler=on_cancel, parent=self.widget)
+        def progress_loop():
+            self._progress_window.process()
+            if self._progress_running:
+                self._progress_window.widget.after(200, progress_loop)
+            else:
+                self._progress_window.widget.destroy()
+                messagebox.showinfo("Success", "Duplicate images were removed.")
 
-        # def remove_runner():
-        #     total = len(delete_paths)
-        #     for i, path in enumerate(delete_paths):
-        #         try:
-        #             if self._cancel:
-        #                 return
-        #             os.remove(path)
-        #             self.on_progress(i / total * 100, "Removing duplicate images...")
-        #         except Exception as e:
-        #             print(f"WARNING: Could not remove {path}: {e}", file=sys.stderr)
-        #     self._progress_running = False
+        def remove_runner():
+            total = len(delete_paths)
+            for i, path in enumerate(delete_paths):
+                try:
+                    if self._cancel:
+                        return
+                    os.remove(path)
+                except Exception as e:
+                    print(f"WARNING: Could not remove {path}: {e}", file=sys.stderr)
+                on_progress(i / total * 100, "Removing duplicate images...")
+            self._progress_running = False
 
-        # self._progress_running = True
-        # with ThreadPoolExecutor(max_workers=1) as executor:
-        #     executor.submit(remove_runner)
-        #     self.progress_loop()
-        #     self.widget.wait_window(self._progress_window.widget)
-
-    # def on_progress(self, value, status):
-    #     self._queue.put(ProgressMessage(value=value, status=status))
-
-    # def progress_loop(self):
-    #     self._progress_window.process()
-    #     if self._progress_running:
-    #         self._progress_window.widget.after(200, self.progress_loop)
-    #     else:
-    #         self._progress_window.widget.destroy()
-    #         self.widget.destroy()
-    #         messagebox.showinfo("Success", "Duplicate images were removed.")
+        self._progress_running = True
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            executor.submit(remove_runner)
+            progress_loop()
+            self.widget.wait_window(self._progress_window.widget)

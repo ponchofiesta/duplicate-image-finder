@@ -18,6 +18,7 @@
     </child>
     <child>
       <object class="ttk.Checkbutton" id="imageCheckbox" named="True">
+        <property name="command" type="command" cbtype="simple">on_check</property>
         <layout manager="pack">
           <property name="fill">both</property>
           <property name="side">top</property>
