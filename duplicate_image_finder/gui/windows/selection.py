@@ -1,5 +1,8 @@
 # Allow Type without quotes
 from __future__ import annotations
+from math import ceil
+from tkinter import StringVar
+from tkinter.ttk import Entry, Label
 
 # Allow type checking without importing
 from typing import TYPE_CHECKING
@@ -15,30 +18,41 @@ if TYPE_CHECKING:
 class SelectionWindow(Window):
     """Image selection window"""
 
+    GROUPS_PER_PAGE = 5
+
     def __init__(self, groups: list[ImageInfoGroup], parent=None):
         super().__init__(parent, "selection_window.ui", "mainWindow")
         self._cancel = False
         self._groups_frame = self._builder.get_object("container")
+        self._page_entry: Entry = self._builder.get_object("pageEntry")
+        self._page_string = StringVar()
+        self._page_entry.configure(textvariable=self._page_string)
         self._image_window = ImageWindow(parent=self.parent)
-        self.page = 1
+        self._page_total_label: Label = self._builder.get_object("totalPagesLabel")
 
         # Modal window
         if parent is not None:
             self.widget.transient(parent)
             self.widget.grab_set()
 
+        self._page = 0
         self.groups = groups
         self.parent = parent
+        self.page = 0
 
         self.widget.bind("<Return>", self.on_page_change)
 
     @property
-    def page(self):
+    def page(self) -> int:
         return self._page
 
     @page.setter
-    def page(self, page):
+    def page(self, page: int):
+        if not self.validate_page(page):
+            return
         self._page = page
+        self._page_string.set(str(page + 1))
+        self.load_images()
         # TODO redraw
 
     @property
@@ -48,6 +62,8 @@ class SelectionWindow(Window):
     @groups.setter
     def groups(self, value):
         self._groups = value
+        total = str(ceil(len(self._groups) / self.GROUPS_PER_PAGE))
+        self._page_total_label.configure(text=total)
         self.load_images()
 
     def on_ok(self, event=None):
@@ -76,17 +92,35 @@ class SelectionWindow(Window):
 
         self._image_window.widget.geometry('+%d+%d' % (window_x, window_y))
 
-    def on_page_validate(self, *event):
-        print("validate")
-        print(event)
+    def on_page_validate(self, page: str):
+        return str.isdigit(page) and self.validate_page(int(page) - 1) or page == ''
+
+    def on_page_prev(self, event=None):
+        self.page -= 1
+
+    def on_page_next(self, event=None):
+        self.page += 1
 
     def on_page_change(self, event=None):
-        print("change")
-        print(event)
+        page = self._page_entry.get()
+        if page == '':
+            page = 0
+        self.page = int(page) - 1
+
+    def validate_page(self, value: int) -> bool:
+        return value >= 0 and value < ceil(len(self.groups) / self.GROUPS_PER_PAGE)
 
     def load_images(self):
+        # Clear old image groups
+        children = self._groups_frame.innerframe.winfo_children()
+        for child in children:
+            child.pack_forget()
         self._image_groups = []
-        for i, group in enumerate(self.groups):
-            group = ImageGroup(group, title=f"Group {i}",
+
+        # Create new image group for page
+        start_group = self.page * self.GROUPS_PER_PAGE
+        end_group = start_group + self.GROUPS_PER_PAGE
+        for i, group in enumerate(self.groups[start_group:end_group]):
+            group = ImageGroup(group, title=f"Group {1 + i + self.page * self.GROUPS_PER_PAGE}",
                                parent=self._groups_frame.innerframe, image_window=self._image_window)
             self._image_groups.append(group)
