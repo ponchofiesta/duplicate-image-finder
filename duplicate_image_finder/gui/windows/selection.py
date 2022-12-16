@@ -1,3 +1,7 @@
+# Allow Type without quotes
+from __future__ import annotations
+
+# Allow type checking without importing
 from typing import TYPE_CHECKING
 
 from ..widgets.image_group import ImageGroup
@@ -11,7 +15,7 @@ if TYPE_CHECKING:
 class SelectionWindow(Window):
     """Image selection window"""
 
-    def __init__(self, groups: list['ImageInfoGroup'], parent=None):
+    def __init__(self, groups: list[ImageInfoGroup], parent=None):
         super().__init__(parent, "selection_window.ui", "mainWindow")
         self._cancel = False
         self._groups_frame = self._builder.get_object("container")
@@ -72,8 +76,13 @@ class SelectionWindow(Window):
 
         self._image_window.widget.geometry('+%d+%d' % (window_x, window_y))
 
+    def on_page_validate(self, *event):
+        print("validate")
+        print(event)
+
     def on_page_change(self, event=None):
         print("change")
+        print(event)
 
     def load_images(self):
         self._image_groups = []

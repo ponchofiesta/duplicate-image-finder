@@ -25,7 +25,7 @@
         <child>
           <object class="ttk.Entry" id="entry1">
             <property name="validate">key</property>
-            <property name="validatecommand" type="command" cbtype="entry_validate" args="%d %i %P %s %S %v %V %W">on_validate_page</property>
+            <property name="validatecommand" type="command" cbtype="entry_validate" args="%d %i %P %s %S %v %V %W">on_page_validate</property>
             <property name="width">5</property>
             <bind sequence="&lt;1&gt;" handler="callback" add="" />
             <layout manager="pack">

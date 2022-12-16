@@ -1,6 +1,9 @@
+# Allow Type without quotes
+from __future__ import annotations
 
 from tkinter import IntVar
 from tkinter.ttk import Checkbutton, Frame, Label, Style
+# Allow type checking without importing
 from typing import TYPE_CHECKING
 
 from finder import ImageInfo
@@ -15,7 +18,7 @@ if TYPE_CHECKING:
 class Image(Widget):
     """An image that can be checked"""
 
-    def __init__(self, image_info: ImageInfo, image_window: 'ImageWindow', parent) -> None:
+    def __init__(self, image_info: ImageInfo, image_window: ImageWindow, parent) -> None:
         super().__init__(parent, "image.ui", "imageFrame", Frame)
 
         self._image_window = image_window

@@ -1,4 +1,8 @@
+# Allow Type without quotes
+from __future__ import annotations
+
 from tkinter.ttk import Frame, Label
+# Allow type checking without importing
 from typing import TYPE_CHECKING
 
 from .base import Widget
@@ -13,7 +17,7 @@ if TYPE_CHECKING:
 class ImageGroup(Widget):
     """A group of images"""
 
-    def __init__(self, image_infos: 'ImageInfoGroup', image_window: 'ImageWindow', title: str = "", parent=None) -> None:
+    def __init__(self, image_infos: ImageInfoGroup, image_window: ImageWindow, title: str = "", parent=None) -> None:
         super().__init__(parent, "image_group.ui", "imageGroup", Frame)
 
         self._images: list[Image] = []
