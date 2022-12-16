@@ -1,4 +1,4 @@
-from .components import MainWindow
+from .windows.main import MainWindow
 
 
 class App:

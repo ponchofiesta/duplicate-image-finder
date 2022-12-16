@@ -7,6 +7,53 @@
     <property name="width">800</property>
     <bind sequence="&lt;Motion&gt;" handler="on_mousemove" add="True" />
     <child>
+      <object class="ttk.Frame" id="pageFrame" named="True">
+        <layout manager="pack">
+          <property name="fill">x</property>
+          <property name="side">top</property>
+        </layout>
+        <child>
+          <object class="ttk.Label" id="label1">
+            <property name="text" translatable="yes">Seite:</property>
+            <layout manager="pack">
+              <property name="padx">8</property>
+              <property name="pady">8</property>
+              <property name="side">left</property>
+            </layout>
+          </object>
+        </child>
+        <child>
+          <object class="ttk.Entry" id="entry1">
+            <property name="validate">key</property>
+            <property name="validatecommand" type="command" cbtype="entry_validate" args="%d %i %P %s %S %v %V %W">on_validate_page</property>
+            <property name="width">5</property>
+            <bind sequence="&lt;1&gt;" handler="callback" add="" />
+            <layout manager="pack">
+              <property name="side">left</property>
+            </layout>
+          </object>
+        </child>
+        <child>
+          <object class="ttk.Label" id="totalPagesLabel" named="True">
+            <property name="text" translatable="yes">/123</property>
+            <layout manager="pack">
+              <property name="side">left</property>
+            </layout>
+          </object>
+        </child>
+        <child>
+          <object class="ttk.Button" id="pageButton" named="True">
+            <property name="command" type="command" cbtype="simple">on_page_change</property>
+            <property name="text" translatable="yes">&gt;</property>
+            <layout manager="pack">
+              <property name="padx">8</property>
+              <property name="side">left</property>
+            </layout>
+          </object>
+        </child>
+      </object>
+    </child>
+    <child>
       <object class="pygubu.builder.widgets.scrolledframe" id="container" named="True">
         <property name="scrolltype">both</property>
         <property name="usemousewheel">true</property>
