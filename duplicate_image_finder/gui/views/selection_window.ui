@@ -74,9 +74,9 @@
       </object>
     </child>
     <child>
-      <object class="pygubu.builder.widgets.scrolledframe" id="container" named="True">
-        <property name="scrolltype">both</property>
-        <property name="usemousewheel">true</property>
+      <object class="ttk.Frame" id="container" named="True">
+        <property name="height">200</property>
+        <property name="width">200</property>
         <layout manager="pack">
           <property name="expand">true</property>
           <property name="fill">both</property>

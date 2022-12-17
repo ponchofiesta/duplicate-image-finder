@@ -1,13 +1,13 @@
 # Allow Type without quotes
 from __future__ import annotations
+
 from math import ceil
 from tkinter import StringVar
-from tkinter.ttk import Entry, Label
-
+from tkinter.ttk import Entry, Frame, Label
 # Allow type checking without importing
 from typing import TYPE_CHECKING
 
-from ..widgets.image_group import ImageGroup
+from ..widgets.image_list import ImageList
 from .base import Window
 from .image import ImageWindow
 
@@ -18,16 +18,17 @@ if TYPE_CHECKING:
 class SelectionWindow(Window):
     """Image selection window"""
 
-    GROUPS_PER_PAGE = 5
+    GROUPS_PER_PAGE = 10
 
     def __init__(self, groups: list[ImageInfoGroup], parent=None):
         super().__init__(parent, "selection_window.ui", "mainWindow")
         self._cancel = False
-        self._groups_frame = self._builder.get_object("container")
+        self._groups_frame: Frame = self._builder.get_object("container")
         self._page_entry: Entry = self._builder.get_object("pageEntry")
         self._page_string = StringVar()
         self._page_entry.configure(textvariable=self._page_string)
         self._image_window = ImageWindow(parent=self.parent)
+        self._image_list = ImageList(parent=self._groups_frame, image_window=self._image_window)
         self._page_total_label: Label = self._builder.get_object("totalPagesLabel")
 
         # Modal window
@@ -112,15 +113,10 @@ class SelectionWindow(Window):
 
     def load_images(self):
         # Clear old image groups
-        children = self._groups_frame.innerframe.winfo_children()
-        for child in children:
-            child.pack_forget()
-        self._image_groups = []
+        self._image_list.clear()
 
         # Create new image group for page
         start_group = self.page * self.GROUPS_PER_PAGE
         end_group = start_group + self.GROUPS_PER_PAGE
         for i, group in enumerate(self.groups[start_group:end_group]):
-            group = ImageGroup(group, title=f"Group {1 + i + self.page * self.GROUPS_PER_PAGE}",
-                               parent=self._groups_frame.innerframe, image_window=self._image_window)
-            self._image_groups.append(group)
+            self._image_list.add_group(group, title=f"Group {1 + i + self.page * self.GROUPS_PER_PAGE}")
