@@ -1,17 +1,18 @@
 from tkinter import END, Text
 from tkinter.ttk import Label, Scrollbar, Style
+from typing import Callable
 
-from finder import ImageInfoGroup
+from finder import ImageInfo, ImageInfoGroup
 
-from ..windows.image import ImageWindow
 from .base import Widget
 from .image import Image
 
 
 class ImageList(Widget):
-    def __init__(self, parent, image_window: ImageWindow) -> None:
+    def __init__(self, parent, on_enter: Callable[[ImageInfo], None], on_leave: Callable[[ImageInfo], None]) -> None:
         super().__init__(parent, None, None, Text)
-        self._image_window = image_window
+        self._on_enter = on_enter
+        self._on_leave = on_leave
         background = Style().lookup('TFrame', 'background')
         self._widget: Text = Text(master=parent, background=background, cursor='arrow', wrap='char', borderwidth=0)
         self._widget.pack(expand=True, fill='both', side='left')
@@ -24,12 +25,13 @@ class ImageList(Widget):
 
         # Add group label
         label = Label(master=self.widget, text=title)
+
         self.widget.window_create(END, window=label)
         self.widget.insert(END, '\n')
 
         # Add images of group
         for image_info in group:
-            image = Image(image_info, parent=self.widget, image_window=self._image_window)
+            image = Image(image_info, parent=self.widget, on_enter=self._on_enter, on_leave=self._on_leave)
             self.widget.window_create(END, window=image.widget)
         self.widget.insert(END, '\n')
 

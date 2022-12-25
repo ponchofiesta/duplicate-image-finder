@@ -3,13 +3,15 @@ from __future__ import annotations
 
 from math import ceil
 from tkinter import StringVar
-from tkinter.ttk import Entry, Frame, Label
+from tkinter.ttk import Entry, Frame, Label, Panedwindow
 # Allow type checking without importing
 from typing import TYPE_CHECKING
 
+from finder import ImageInfo
+
+from ..graphics import load_image
 from ..widgets.image_list import ImageList
 from .base import Window
-from .image import ImageWindow
 
 if TYPE_CHECKING:
     from finder import ImageInfoGroup
@@ -27,13 +29,14 @@ class SelectionWindow(Window):
         self._page_entry: Entry = self._builder.get_object("pageEntry")
         self._page_string = StringVar()
         self._page_entry.configure(textvariable=self._page_string)
-        self._image_window = ImageWindow(parent=self.parent)
-        self._image_list = ImageList(parent=self._groups_frame, image_window=self._image_window)
+        self._paned_window: Panedwindow = self._builder.get_object("panedwindow1")
+        self._image_preview: Label = self._builder.get_object("image_preview_label")
+        self._image_list = ImageList(parent=self._groups_frame,
+                                     on_enter=self.on_image_enter, on_leave=self.on_image_leave)
         self._page_total_label: Label = self._builder.get_object("totalPagesLabel")
 
         # Modal window
         if parent is not None:
-            self.widget.transient(parent)
             self.widget.grab_set()
 
         self._page = 0
@@ -70,28 +73,16 @@ class SelectionWindow(Window):
     def on_ok(self, event=None):
         self.widget.destroy()
 
-    def on_mousemove(self, event=None):
-        space = 32
-        bottom = 80
+    def on_image_enter(self, image_info: ImageInfo):
+        width = self._image_preview.winfo_width()
+        height = self._image_preview.winfo_height()
+        if width <= 0 or height <= 0:
+            return
+        image = load_image(image_info.path, width=width, height=height)
+        self._image_preview.configure(image=image)
 
-        mouse_x = self.widget.winfo_pointerx()
-        mouse_y = self.widget.winfo_pointery()
-        screen_width = self.widget.winfo_screenwidth()
-        screen_height = self.widget.winfo_screenheight()
-        window_width = self._image_window.widget.winfo_width()
-        window_height = self._image_window.widget.winfo_height()
-
-        if mouse_x > screen_width / 2:
-            window_x = mouse_x - window_width - space - space
-        else:
-            window_x = mouse_x + space
-
-        if mouse_y > screen_height - window_height - bottom:
-            window_y = screen_height - window_height + space - bottom
-        else:
-            window_y = mouse_y + space
-
-        self._image_window.widget.geometry('+%d+%d' % (window_x, window_y))
+    def on_image_leave(self, event=None):
+        self._image_preview.configure(image='')
 
     def on_page_validate(self, page: str):
         return str.isdigit(page) and self.validate_page(int(page) - 1) or page == ''

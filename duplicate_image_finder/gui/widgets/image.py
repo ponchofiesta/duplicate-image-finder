@@ -3,25 +3,27 @@ from __future__ import annotations
 
 from tkinter import IntVar
 from tkinter.ttk import Checkbutton, Frame, Label, Style
-# Allow type checking without importing
-from typing import TYPE_CHECKING
+from typing import Callable
 
 from finder import ImageInfo
 
 from ..graphics import load_image
 from .base import Widget
 
-if TYPE_CHECKING:
-    from ..windows.image import ImageWindow
-
 
 class Image(Widget):
     """An image that can be checked"""
 
-    def __init__(self, image_info: ImageInfo, image_window: ImageWindow, parent) -> None:
+    def __init__(
+            self, image_info: ImageInfo, on_enter: Callable[[ImageInfo],
+                                                            None],
+            on_leave: Callable[[ImageInfo],
+                               None],
+            parent) -> None:
         super().__init__(parent, "image.ui", "imageFrame", Frame)
 
-        self._image_window = image_window
+        self._on_enter = on_enter
+        self._on_leave = on_leave
 
         self._label: Label = self._builder.get_object('imageLabel')
         self._checkbox: Checkbutton = self._builder.get_object('imageCheckbox')
@@ -55,12 +57,10 @@ class Image(Widget):
         self._image_info.checked = self.checked
 
     def on_enter(self, event=None):
-        self._image_window.title = self._image_info.path
-        self._image_window.path = self._image_info.path
-        self._image_window.widget.deiconify()
+        self._on_enter(self.image_info)
 
     def on_leave(self, event=None):
-        self._image_window.widget.withdraw()
+        self._on_leave(self.image_info)
 
     def on_click(self, event=None):
         self.checked = not self.checked
