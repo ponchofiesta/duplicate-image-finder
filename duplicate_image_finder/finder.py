@@ -54,6 +54,9 @@ ImageInfoGroup = dict[ImageInfo, Literal[None]]
 
 class DuplicateFinder:
     """Get image infos and compare them to find similar images"""
+
+    # HISTOGRAM_MAX = 1000
+
     def __init__(self) -> None:
         self.cancel = False
 
@@ -143,6 +146,7 @@ class DuplicateFinder:
         color_histogram: RgbHistogram = {}
         for color in list(Color):
             histogram, bin_edges = np.histogram(image[:, :, color.value], bins=256, range=(0, 256))
+            # histogram = histogram * DuplicateFinder.HISTOGRAM_MAX / histogram.max()
             color_histogram[color] = histogram
         return ImageInfo(path=path, histogram=color_histogram)
 
