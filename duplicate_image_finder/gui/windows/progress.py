@@ -22,10 +22,22 @@ class ProgressWindow(Window):
         self._queue = queue
         self._cancel_handler = cancel_handler
 
-        # Modal window
         if parent is not None:
+            # Modal window
             self.widget.transient(parent)
             self.widget.grab_set()
+
+            # Center window to parent window
+            self.widget.update_idletasks()
+            parent_x = parent.winfo_x()
+            parent_y = parent.winfo_y()
+            parent_width = parent.winfo_width()
+            parent_height = parent.winfo_height()
+            width = self.widget.winfo_width()
+            height = self.widget.winfo_height()
+            x = parent_x + (parent_width // 2 - width // 2)
+            y = parent_y + (parent_height // 2 - height // 2)
+            self.widget.geometry(f'+{x}+{y}')
 
         self._label_status: Label = self._builder.get_object('labelStatus')
         self._progressbar: Progressbar = self._builder.get_object('progressbar')
