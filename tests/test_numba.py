@@ -1,21 +1,19 @@
-import random
 import numpy as np
 import numba
 
 num_iterations = 6_000_000
-bins = list(range(256))
+num_bins = 256
 
 def input_generator():
-    return random.randint(0, 255)
-    #return np.random.normal(loc=0.0, scale=5.0, size=num_iterations).astype(np.float64)
+    return np.random.normal(loc=0.0, scale=5.0, size=num_iterations).astype(np.uint64)
 
 def test_numpy_histogram(benchmark):
     a = input_generator()
-    benchmark(np.histogram, a, bins)
+    benchmark(np.histogram, a, num_bins)
 
 def test_numba_histogram(benchmark):
     a = input_generator()
-    benchmark(numba_histogram, a, bins)
+    benchmark(numba_histogram, a, num_bins)
 
 @numba.jit(nopython=True)
 def get_bin_edges(a, bins):
