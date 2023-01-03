@@ -1,3 +1,4 @@
-numpy~=1.23.5
-imageio~=2.22.4
-pygubu==0.27
+numpy ~= 1.23.5
+numba ~= 0.56.4
+imageio ~= 2.22.4
+pygubu == 0.27
