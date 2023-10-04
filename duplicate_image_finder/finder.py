@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any, Callable, Literal, Optional
 
 import imageio.v3 as iio
+import image_utils
 import numpy as np
 from numba import jit
 
@@ -19,7 +20,7 @@ class Color(Enum):
 
 
 Histogram = np.ndarray
-RgbHistogram = dict[Color, Histogram]
+RgbHistogram = dict[Color | int, Histogram]
 
 
 @dataclass
@@ -35,8 +36,9 @@ class ImageInfo:
         diff: int = 0
         if self.histogram is None or other.histogram is None:
             raise TypeError("histogram must be not None")
-        for color in self.histogram:
-            diff += np.sum(np.absolute(self.histogram[color] - other.histogram[color]))
+        for (color, _) in enumerate(self.histogram):
+            for (a, b) in zip(self.histogram[color], other.histogram[color]):
+                diff += abs(a - b)
         return diff
 
     def __hash__(self):
@@ -137,20 +139,15 @@ class DuplicateFinder:
             item.checked = False
 
         return (groups, failed)
-
+    
     def get_histogram(self, path: Path) -> ImageInfo:
         """Get color histgram of each channel of an image"""
         try:
-            image = iio.imread(uri=path.absolute())
+            color_histogram: RgbHistogram = image_utils.get_histograms_from_image(str(path.absolute()))
         except Exception as e:
             return ImageInfo(path=path, error=e)
-        color_histogram: RgbHistogram = {}
-        for color in list(Color):
-            histogram, bin_edges = numba_histogram(image[:, :, color.value], bins=256)
-            # histogram = histogram * DuplicateFinder.HISTOGRAM_MAX / histogram.max()
-            color_histogram[color] = histogram
         return ImageInfo(path=path, histogram=color_histogram)
-
+    
     def get_diff(self, pair: Pair) -> Pair:
         """Calculate difference between two images"""
         pair.diff = pair.a - pair.b
